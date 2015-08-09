@@ -3,7 +3,9 @@
 
 int main(int argc, const char* argv[])
 {
-	WebMapService wms;
+	dw::WebMapService wms;
+
+	// TODO: create wms config based on external settings
 
 	int result = wms.Start();
 	if (result)
