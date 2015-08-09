@@ -7,6 +7,9 @@
 
 #include "WebMapService.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
 using namespace std;
 using namespace std::chrono;
 
@@ -34,13 +37,24 @@ namespace dw
 	static const int DefaultServerPort = 8282;
 	int WebMapService::Start()
 	{
+		cout << "Reading Config" << endl;
+
+		// TODO: read config
+
+		cout << "Creating Layers" << endl;
+		LayerFactory::CreateLayers(availableLayers /*, config*/);
+
+		cout << "Starting HTTP Server listening to port " << DefaultServerPort << endl;
+
 		daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, DefaultServerPort, NULL, NULL, &HandleRequestStatic, this, MHD_OPTION_END);
 		if (!daemon) {
 			cout << "ERROR: unable to create HTTP server" << endl;
 			return -1;
 		}
 
-		cout << "Started HTTP Server listening to port " << DefaultServerPort << endl;
+		cout << "ready" << endl;
+
+		cout << endl << "example request: " << endl << "http://localhost:8282/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=-14607737,2378356,-6201882,7104700.22959910612553358&CRS=EPSG:3857&WIDTH=1905&HEIGHT=1071&LAYERS=nexrad_wms&STYLES=&FORMAT=image/png&DPI=192&MAP_RESOLUTION=192&FORMAT_OPTIONS=dpi:192&TRANSPARENT=TRUE" << endl;
 
 		return 0;
 	}
@@ -61,7 +75,7 @@ namespace dw
 
 	static int HandleServiceException(struct MHD_Connection *connection, const astring& exeptionCode)
 	{
-		// TODO implement service exception according to WMS 1.3.0 Specs (XML ...)
+		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
 		struct MHD_Response* response = MHD_create_response_from_buffer(exeptionCode.length(), (void*)exeptionCode.c_str(), MHD_RESPMEM_MUST_COPY);
 		int ret = MHD_queue_response(connection, MHD_HTTP_BAD_REQUEST, response);
@@ -69,26 +83,38 @@ namespace dw
 		return ret;
 	}
 
-	struct GetMapRequest
+	int WebMapService::HandleGetMapRequest(struct MHD_Connection *connection, const astring& layers, const astring& format, GetMapRequest& gmr)
 	{
-		struct BBox
+		auto availableLayer = availableLayers.find(layers); // TODO: support multiple comma separated layers (incl. alpha blended composite as result)
+		if (availableLayer == availableLayers.end())
 		{
-			double minX;
-			double minY;
-			double maxX;
-			double maxY;
-		};
-		astring crs;
-		BBox bbox;
-		int width;
-		int height;
-	};
+			return HandleServiceException(connection, "LayerNotDefined");
+		}
 
-	int WebMapService::HandleGetMapRequest(struct MHD_Connection *connection, GetMapRequest& gmr)
-	{
 		high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-		struct MHD_Response* response = MHD_create_response_from_buffer(6, "naaak!", MHD_RESPMEM_MUST_COPY);
+		if (format == "image/png")
+		{
+			gmr.valueFormat = CF_UINT32;
+		}
+
+		size_t pixelSize = ValueFormatSize[gmr.valueFormat];
+		u8* data = new u8[pixelSize * gmr.width * gmr.height];
+
+		Layer::HandleGetMapRequestResult result = availableLayer->second->HandleGetMapRequest(gmr, data);
+		if (result != Layer::HGMRR_OK)
+		{
+			delete[] data;
+			return HandleServiceException(connection, "InvalidFormat"); // TODO: or style?
+		}
+
+
+		int dataSize = 0; // TODO: replace stb library by faster lib (e.g. turbo version of libpng)
+		unsigned char* renderingData = stbi_write_png_to_mem((u8*)data, gmr.width * sizeof(u32), gmr.width, gmr.height, 4, &dataSize);
+		struct MHD_Response* response = MHD_create_response_from_buffer(dataSize, renderingData, MHD_RESPMEM_MUST_COPY);
+		STBIW_FREE(renderingData);
+
+		delete[] data;
 
 		int success = MHD_add_response_header(response, "Content-Type", "image/png");
 		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
@@ -98,7 +124,7 @@ namespace dw
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
 		std::cout << "GetMapRequest was processed within " << round(time_span.count()) << " ms" << endl;
 
-		return MHD_YES;
+		return result;
 	}
 
 	int WebMapService::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
@@ -127,13 +153,9 @@ namespace dw
 		// optional arguments
 		//const char* time = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "time");
 
-		if (!layers || !crs || !bbox || !width || !height)
+		if (!layers || !crs || !bbox || !width || !height || !format)
 		{
 			return HandleServiceException(connection, "missing mandatory argument");
-		}
-		if (astring(layers) != "nexrad_wms") // TODO: allow multiple layers?
-		{
-			return HandleServiceException(connection, "LayerNotDefined");
 		}
 
 		vector<astring> supportedCRS = { "EPSG:3857", "EPSG:4326" }; // TODO: should be in sync with GetCapabilities.xml
@@ -157,7 +179,7 @@ namespace dw
 		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "unknown bbox syntax");
 		gmr.bbox.maxY = strtod(bboxValue + 1, &bboxValue);
 
-		return HandleGetMapRequest(connection, gmr);
+		return HandleGetMapRequest(connection, layers, format, gmr);
 	}
 
 }

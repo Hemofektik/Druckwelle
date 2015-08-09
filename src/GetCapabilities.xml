@@ -47,8 +47,6 @@ R"=====(<?xml version='1.0' encoding="ISO-8859-1" standalone="no" ?>
       </GetMap>
     </Request>
 	<Exception>
-		<Format>XML</Format>
-		<Format>INIMAGE</Format>
 		<Format>BLANK</Format>
 	</Exception>
     <Layer>
