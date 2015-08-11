@@ -123,7 +123,14 @@ namespace dw
 		if (result != Layer::HGMRR_OK)
 		{
 			delete[] data;
-			return HandleServiceException(connection, "InvalidFormat"); // TODO: or maybe invalid style?
+			if (result == Layer::HGMRR_InvalidFormat)
+			{
+				return HandleServiceException(connection, "InvalidFormat");
+			}
+			else
+			{
+				return HandleServiceException(connection, "StyleNotDefined");
+			}
 		}
 
 		int dataSize = 0; // TODO: replace stb library by faster lib (e.g. turbo version of libpng)
@@ -136,7 +143,6 @@ namespace dw
 		int success = MHD_add_response_header(response, "Content-Type", "image/png");
 		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 		MHD_destroy_response(response);
-
 
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
@@ -176,25 +182,31 @@ namespace dw
 			return HandleServiceException(connection, "missing mandatory argument");
 		}
 
-		vector<astring> supportedCRS = { "EPSG:3857", "EPSG:4326" }; // TODO: should be in sync with GetCapabilities.xml
+		vector<astring> supportedCRS = { "EPSG:3857", "EPSG:4326" }; // TODO: should be in sync with config/GetCapabilities.xml
 		if (find(supportedCRS.begin(), supportedCRS.end(), crs) == supportedCRS.end())
 		{
 			return HandleServiceException(connection, "InvalidCRS");
 		}
 
 		GetMapRequest gmr;
-		gmr.width = atoi(width); // TODO: should be limited by size given in GetCapabilities.xml
-		gmr.height = atoi(height);
 		gmr.crs = crs;
+
+		gmr.width = atoi(width); // TODO: should be limited by size given in config/GetCapabilities.xml
+		gmr.height = atoi(height);
+
+		if (gmr.width == 0|| gmr.height == 0)
+		{
+			return HandleServiceException(connection, "InvalidSize");
+		}
 
 		char* bboxValue = NULL;
 		const char* bboxEnd = bbox + strlen(bbox);
 		gmr.bbox.minX = strtod(bbox, &bboxValue);
-		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "unknown bbox syntax");
+		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "InvalidBBOX");
 		gmr.bbox.minY = strtod(bboxValue + 1, &bboxValue);
-		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "unknown bbox syntax");
+		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "InvalidBBOX");
 		gmr.bbox.maxX = strtod(bboxValue + 1, &bboxValue);
-		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "unknown bbox syntax");
+		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "InvalidBBOX");
 		gmr.bbox.maxY = strtod(bboxValue + 1, &bboxValue);
 
 		return HandleGetMapRequest(connection, layers, format, gmr);
