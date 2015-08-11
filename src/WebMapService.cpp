@@ -28,7 +28,6 @@ static int HandleRequestStatic(void *cls, struct MHD_Connection *connection,
 
 namespace dw
 {
-	std::vector<WebMapService::LayerFactory::LayerDesc> WebMapService::LayerFactory::layers;
 
 	WebMapService::WebMapService()
 	{
@@ -44,6 +43,15 @@ namespace dw
 		cout << "Creating Layers" << endl;
 		LayerFactory::CreateLayers(availableLayers /*, config*/);
 
+		if (availableLayers.size() == 0)
+		{
+			cout << "not a single layer was configured... shutting down" << endl;
+
+			// TODO: list all available layers and propose detailed config info for each layer (e.g. --help <layerName>)
+
+			return -1;
+		}
+
 		cout << "Starting HTTP Server listening to port " << DefaultServerPort << endl;
 
 		daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, DefaultServerPort, NULL, NULL, &HandleRequestStatic, this, MHD_OPTION_END);
@@ -54,7 +62,7 @@ namespace dw
 
 		cout << "ready" << endl;
 
-		cout << endl << "example request: " << endl << "http://localhost:8282/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=-14607737,2378356,-6201882,7104700.22959910612553358&CRS=EPSG:3857&WIDTH=1905&HEIGHT=1071&LAYERS=nexrad_wms&STYLES=&FORMAT=image/png&DPI=192&MAP_RESOLUTION=192&FORMAT_OPTIONS=dpi:192&TRANSPARENT=TRUE" << endl;
+		cout << endl << "example request: " << endl << "http://localhost:8282/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=-14607737,2378356,-6201882,7104700.22959910612553358&CRS=EPSG:3857&WIDTH=1905&HEIGHT=1071&LAYERS=" << availableLayers.begin()->first << "&STYLES=&FORMAT=image/png&DPI=192&MAP_RESOLUTION=192&FORMAT_OPTIONS=dpi:192&TRANSPARENT=TRUE" << endl;
 
 		return 0;
 	}
@@ -62,6 +70,16 @@ namespace dw
 	void WebMapService::Stop()
 	{
 		MHD_stop_daemon(daemon);
+	}
+
+	void WebMapService::LayerFactory::CreateLayers(std::map<astring, Layer*>& layers /*, config*/)
+	{
+		for each (const auto& layerDesc in LayerFactory::GetStaticLayers())
+		{
+			layers[layerDesc.name] = layerDesc.createLayer();
+
+			cout << "Enabled layer: " << astring(layerDesc.title.cbegin(), layerDesc.title.cend()) << endl;
+		}
 	}
 
 	static int HandleGetCapabilities(struct MHD_Connection *connection)
@@ -105,26 +123,26 @@ namespace dw
 		if (result != Layer::HGMRR_OK)
 		{
 			delete[] data;
-			return HandleServiceException(connection, "InvalidFormat"); // TODO: or style?
+			return HandleServiceException(connection, "InvalidFormat"); // TODO: or maybe invalid style?
 		}
-
 
 		int dataSize = 0; // TODO: replace stb library by faster lib (e.g. turbo version of libpng)
 		unsigned char* renderingData = stbi_write_png_to_mem((u8*)data, gmr.width * sizeof(u32), gmr.width, gmr.height, 4, &dataSize);
+		delete[] data;
+
 		struct MHD_Response* response = MHD_create_response_from_buffer(dataSize, renderingData, MHD_RESPMEM_MUST_COPY);
 		STBIW_FREE(renderingData);
-
-		delete[] data;
 
 		int success = MHD_add_response_header(response, "Content-Type", "image/png");
 		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 		MHD_destroy_response(response);
 
+
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
 		std::cout << "GetMapRequest was processed within " << round(time_span.count()) << " ms" << endl;
 
-		return result;
+		return ret;
 	}
 
 	int WebMapService::HandleRequest(MHD_Connection* connection, const char* url, const char* method)

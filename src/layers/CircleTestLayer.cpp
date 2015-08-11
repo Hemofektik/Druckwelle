@@ -3,14 +3,14 @@
 
 namespace dw
 {
-	const string LayerName = dwTEXT("CircleTestLayer");
+	const astring LayerName = "CircleTestLayer";
 	const string LayerTitle = dwTEXT("Circle Rendering Test Layer");
 
 	class CircleTestLayer : public WebMapService::Layer
 	{
 	public:
 
-		virtual const char_t* GetName() const override
+		virtual const char* GetName() const override
 		{
 			return LayerName.c_str();
 		}
@@ -42,7 +42,7 @@ namespace dw
 			switch (gmr.valueFormat)
 			{
 			case WebMapService::CF_UINT32:
-				return HandleGetMapRequest<u32>(gmr, (u32*)data, 0xFFFFFFFF);
+				return HandleGetMapRequest<u32>(gmr, (u32*)data, 0xFF0000FF);
 			default:
 				return HGMRR_InvalidFormat;
 			}

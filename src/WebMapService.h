@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dwcore.h"
+
 #include <string>
 #include <vector>
 #include <map>
@@ -68,7 +69,7 @@ namespace dw
 				HGMRR_InvalidFormat,
 			};
 
-			virtual const char_t* GetName() const = 0;
+			virtual const char* GetName() const = 0;
 			virtual const char_t* GetTitle() const = 0;
 			virtual const char_t* GetAbstract()  const { return NULL; };
 
@@ -80,30 +81,35 @@ namespace dw
 		class LayerFactory
 		{
 		public:
-			LayerFactory(const string& layerName, const string& layerTitle, CreateLayer createLayer)
+			LayerFactory(const astring& layerName, const string& layerTitle, CreateLayer createLayer)
 			{
 				LayerDesc lDesc;
-				lDesc.layerName = layerName;
-				lDesc.layerTitle = layerTitle;
+				lDesc.name = layerName;
+				lDesc.title = layerTitle;
 				lDesc.createLayer = createLayer;
-				layers.push_back(std::move(lDesc));
+				GetStaticLayers().push_back(lDesc);
 			}
 
-			static void CreateLayers( std::map<astring, Layer*> layers /*, config*/)
-			{
-				// TODO: implement
-			}
+			static void CreateLayers(std::map<astring, Layer*>& layers /*, config*/);
 
 		private:
 
 			struct LayerDesc
 			{
-				string layerName;
-				string layerTitle;
+				astring name; // computer readable name (unique identification)
+				string title; // human readable name
 				CreateLayer createLayer;
 			};
 
-			static std::vector<LayerDesc> layers;
+			static std::vector<LayerDesc>& GetStaticLayers()
+			{
+				static std::vector<LayerDesc>* layers = NULL;
+				if (layers == NULL)
+				{
+					layers = new std::vector<LayerDesc>();
+				}
+				return *layers;
+			}
 		};
 
 		WebMapService();
