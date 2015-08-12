@@ -90,6 +90,7 @@ namespace dw
 			}
 			else
 			{
+				cout << "Discarded layer: " << layerTitle << endl;
 				delete newLayer;
 			}
 		}
