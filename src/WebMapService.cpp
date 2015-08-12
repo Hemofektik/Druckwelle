@@ -1,6 +1,7 @@
 
 #include <vector>
 #include <iostream>
+#include <iomanip>
 #include <chrono>
 
 #include <microhttpd.h>
@@ -62,7 +63,9 @@ namespace dw
 
 		cout << "ready" << endl;
 
+#if _DEBUG
 		cout << endl << "example request: " << endl << "http://localhost:8282/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=-14607737,2378356,-6201882,7104700.22959910612553358&CRS=EPSG:3857&WIDTH=1905&HEIGHT=1071&LAYERS=" << availableLayers.begin()->first << "&STYLES=&FORMAT=image/png&DPI=192&MAP_RESOLUTION=192&FORMAT_OPTIONS=dpi:192&TRANSPARENT=TRUE" << endl;
+#endif
 
 		return 0;
 	}
@@ -76,9 +79,19 @@ namespace dw
 	{
 		for each (const auto& layerDesc in LayerFactory::GetStaticLayers())
 		{
-			layers[layerDesc.name] = layerDesc.createLayer();
+			Layer* newLayer = layerDesc.createLayer();
 
-			cout << "Enabled layer: " << astring(layerDesc.title.cbegin(), layerDesc.title.cend()) << endl;
+			astring layerTitle(layerDesc.title.cbegin(), layerDesc.title.cend());
+			cout << "Loading layer: " << layerTitle << '\r';
+			if (newLayer->Init())
+			{
+				layers[layerDesc.name] = newLayer;
+				cout << "Enabled layer: " << layerTitle << endl;
+			}
+			else
+			{
+				delete newLayer;
+			}
 		}
 	}
 
@@ -123,13 +136,20 @@ namespace dw
 		if (result != Layer::HGMRR_OK)
 		{
 			delete[] data;
-			if (result == Layer::HGMRR_InvalidFormat)
+			switch (result)
 			{
-				return HandleServiceException(connection, "InvalidFormat");
-			}
-			else
-			{
+			case dw::WebMapService::Layer::HGMRR_InvalidStyle:
 				return HandleServiceException(connection, "StyleNotDefined");
+			case dw::WebMapService::Layer::HGMRR_InvalidFormat:
+				return HandleServiceException(connection, "InvalidFormat");
+			case dw::WebMapService::Layer::HGMRR_InvalidSRS:
+				return HandleServiceException(connection, "InvalidCRS");
+			case dw::WebMapService::Layer::HGMRR_InvalidBBox:
+				return HandleServiceException(connection, "InvalidBBox");
+			case dw::WebMapService::Layer::HGMRR_OK:
+			default:
+				return HandleServiceException(connection, "Internal Error");
+				break;
 			}
 		}
 
@@ -146,7 +166,7 @@ namespace dw
 
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
-		std::cout << "GetMapRequest was processed within " << round(time_span.count()) << " ms" << endl;
+		std::cout << "GetMapRequest was processed within " << std::setprecision(2) << time_span.count() << " ms" << endl;
 
 		return ret;
 	}
@@ -180,12 +200,6 @@ namespace dw
 		if (!layers || !crs || !bbox || !width || !height || !format)
 		{
 			return HandleServiceException(connection, "missing mandatory argument");
-		}
-
-		vector<astring> supportedCRS = { "EPSG:3857", "EPSG:4326" }; // TODO: should be in sync with config/GetCapabilities.xml
-		if (find(supportedCRS.begin(), supportedCRS.end(), crs) == supportedCRS.end())
-		{
-			return HandleServiceException(connection, "InvalidCRS");
 		}
 
 		GetMapRequest gmr;

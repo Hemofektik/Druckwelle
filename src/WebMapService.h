@@ -67,10 +67,15 @@ namespace dw
 				HGMRR_OK,
 				HGMRR_InvalidStyle,
 				HGMRR_InvalidFormat,
+				HGMRR_InvalidBBox,
+				HGMRR_InvalidSRS,
 			};
 
-			virtual const char* GetName() const = 0;
-			virtual const char_t* GetTitle() const = 0;
+			virtual ~Layer() {};
+
+			virtual bool Init(/* layerconfig */) { return true; };  // return true on successful init
+ 			virtual const char* GetName() const = 0;				// computer readable name (unique identification)
+			virtual const char_t* GetTitle() const = 0;				// human readable name
 			virtual const char_t* GetAbstract()  const { return NULL; };
 
 			virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) = 0;

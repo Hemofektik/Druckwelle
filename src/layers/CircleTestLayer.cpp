@@ -3,11 +3,15 @@
 
 namespace dw
 {
+namespace Layers
+{
 	const astring LayerName = "CircleTestLayer";
 	const string LayerTitle = dwTEXT("Circle Rendering Test Layer");
 
 	class CircleTestLayer : public WebMapService::Layer
 	{
+		virtual ~CircleTestLayer() override {};
+
 	public:
 
 		virtual const char* GetName() const override
@@ -50,4 +54,5 @@ namespace dw
 	};
 
 	IMPLEMENT_WEBMAPSERVICE_LAYER(CircleTestLayer, LayerName, LayerTitle);
+}
 }
