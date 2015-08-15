@@ -6,11 +6,15 @@
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
 
+#include <ZFXMath.h>
+
+#include "../utils/ReadZIP.h"
 #include "../WebMapService.h"
 
 using namespace std;
 using namespace std::experimental::filesystem::v1;
 using namespace dw;
+using namespace ZFXMath;
 
 namespace dw
 {
@@ -37,6 +41,21 @@ namespace Layers
 			int longitude;
 			int latitude;
 			path filename;
+		};
+
+		struct ASTERTileContent
+		{
+			uint8_t* elevation;
+			uint64_t elevationSize;
+			uint8_t* quality;
+			uint64_t qualitySize;
+
+			ZIPFile sourceFile;
+
+			~ASTERTileContent()
+			{
+				DestroyZIPFile(sourceFile);
+			}
 		};
 
 		map<astring, OGRSpatialReference*> supportedCRS;
@@ -166,6 +185,16 @@ namespace Layers
 			return LayerTitle.c_str();
 		}
 
+		virtual const int GetFixedWidth() const override
+		{
+			return 3600 * 360; // number of arc seconds around longitude
+		}
+
+		virtual const int GetFixedHeight() const override
+		{
+			return 3600 * 180; // number of arc seconds around latitude
+		}
+
 
 		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) override
 		{
@@ -201,6 +230,43 @@ namespace Layers
 			}
 		}
 
+		bool GetFileFromZip(const ZIPFile& file, astring endsWidth, uint8_t*& data, uint64_t& dataSize)
+		{
+			for (uint64_t i = 0; i < file.numItems; i++)
+			{
+				auto& item = file.items[i];
+				size_t pos = item.name.rfind(endsWidth);
+				if (pos != astring::npos)
+				{
+					data = item.data;
+					dataSize = item.dataSize;
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		bool LoadASTERTileContent(const ASTERTile* tile, ASTERTileContent& content)
+		{
+			if (!ReadZIPFile(tile->filename.string(), content.sourceFile, true))
+			{
+				return false;
+			}
+
+			if (!GetFileFromZip(content.sourceFile, "_dem.tif", content.elevation, content.elevationSize))
+			{
+				return false;
+			}
+
+			if (!GetFileFromZip(content.sourceFile, "_num.tif", content.quality, content.qualitySize))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		template<typename T>
 		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, T* data)
 		{
@@ -210,10 +276,20 @@ namespace Layers
 				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 			}
 
-			vector<ASTERTile> asterTiles;
-			GetASTERTiles(asterTiles, asterBBox);
+			vector<ASTERTile*> asterTilesTouched;
+			GetASTERTiles(asterTilesTouched, asterBBox);
 
-			memset(data, 0, sizeof(T) * gmr.width * gmr.height);
+			for each (const auto& tile in asterTilesTouched)
+			{
+				ASTERTileContent tileContent;
+
+				if (!LoadASTERTileContent(tile, tileContent))
+				{
+					return HGMRR_InternalError;
+				}
+
+
+			}
 
 			const int numPixels = gmr.width * gmr.height;
 			for (size_t p = 0; p < numPixels; p++)
@@ -269,22 +345,26 @@ namespace Layers
 			srsTransforms[transId] = (src == dst) ? NULL : OGRCreateCoordinateTransformation(src, dst);
 		}
 
-		void GetASTERTiles(vector<ASTERTile>& asterTiles, const WebMapService::GetMapRequest::BBox& asterBBox)
+
+		void GetASTERTiles(vector<ASTERTile*>& asterTilesTouched, const WebMapService::GetMapRequest::BBox& asterBBox)
 		{
-			int startX = (int)floor(asterBBox.minX);
-			int startY = (int)floor(asterBBox.minY);
-			int endX = (int)floor(asterBBox.maxX - 0.0001); // we fudge the max values because each 
-			int endY = (int)floor(asterBBox.maxY - 0.0001); // tile overlaps by one pixel with next tile
+			int startX = Clamp((int)floor(asterBBox.minX), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude;
+			int startY = Clamp((int)floor(asterBBox.minY), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude;
+			int endX = Clamp((int)floor(asterBBox.maxX - 0.000001), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude; // we fudge the max values because each 
+			int endY = Clamp((int)floor(asterBBox.maxY - 0.000001), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
 
 			for (int y = startY; y <= endY; y++)
 			{
+				int vIndex = y * NumASTERTilesX;
+				ASTERTile* asterTile = &asterTiles[vIndex + startX];
 				for (int x = startX; x <= endX; x++)
 				{
-					ASTERTile tile;
-					tile.longitude = x;
-					tile.latitude = y;
+					if (asterTile->latitude != MissingTileCoordinate)
+					{
+						asterTilesTouched.push_back(asterTile);
+					}
 
-					asterTiles.push_back(tile);
+					asterTile++;
 				}
 			}
 		}

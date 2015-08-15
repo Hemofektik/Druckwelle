@@ -69,6 +69,7 @@ namespace dw
 				HGMRR_InvalidFormat,
 				HGMRR_InvalidBBox,
 				HGMRR_InvalidSRS,
+				HGMRR_InternalError, // e.g. file corrupt/missing
 			};
 
 			virtual ~Layer() {};
@@ -77,6 +78,10 @@ namespace dw
  			virtual const char* GetName() const = 0;				// computer readable name (unique identification)
 			virtual const char_t* GetTitle() const = 0;				// human readable name
 			virtual const char_t* GetAbstract()  const { return NULL; };
+			virtual const int GetFixedWidth() const { return 0; };
+			virtual const int GetFixedHeight() const { return 0; };
+			virtual const int GetMaxWidth() const { return 0; };
+			virtual const int GetMaxHeight() const { return 0; };
 
 			virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) = 0;
 		};

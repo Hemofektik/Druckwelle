@@ -57,7 +57,8 @@ xcopy /E /Y 3rdparty\stb inc
 xcopy /E /Y 3rdparty\GeometricTools\GTEngine\Include inc
 xcopy /E /Y 3rdparty\GeometricTools\lib lib
 
-
+:: ZFXMath
+xcopy /E /Y 3rdparty\ZFXMath\include inc
 
 
 

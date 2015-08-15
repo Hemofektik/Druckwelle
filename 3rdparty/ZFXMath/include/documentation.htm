@@ -1,0 +1,50 @@
+<html>
+<head>
+<title>ZFX-MathLib::ComplexN.h</title>
+<style type="text/css">
+.code {color:#0000FF;}
+</style>
+</head>
+<body>
+<h1>ComplexN.h</h1>
+Namespace: ZFXMath
+<h2>Konstruktor</h2>
+<h3>TComplexN()</h3>
+<div class="code">TComplexN(T _re, T _im):re(_re), im(_im){}	// kartesische Koordinaten </div>
+
+Erstellt eine komplexe Zahl aus kartesischen Koordinaten. <br>
+_re : Realteil der komplexen Zahl <br>
+_im : Imaginärteil der komplexen Zahl <br>
+<p>Beispiel:</p>
+<div class="code">
+typedef ZFXMath::TComplexN<float> Complex;
+Complex c1 = ZFXMath::TComplexN<float>(0.0, 1.0);
+</div>
+
+<h3>Polar(T bg, T arg)</h3>
+Erstellt eine komplexe Zahl aus Polarkoordinaten anhand des Betrages und des Winkels in Radiant. <br>
+<div class="code">
+
+</div>
+<p>Beispiel:</p>
+
+
+
+
+<h2>Operatoren</h2>
+
+<h3>==</h3>
+<div class="code">bool operator == (TComplexN&lt;T&gt; a) {if(re == a.re && im == a.im)return true; return false;}</div>
+Vergleicht 2 komplexe Zahlen<br>
+2 Komplexe Zahlen sind genau dann gleich, wenn sie in Realteil und Imaginärteil übereinstimmen. <br>
+Beispiel:<br>
+<div class="code">
+	typedef ZFXMath::TComplexN<float> Complex;
+	Complex c1 = ZFXMath::TComplexN<float>(0.0, 1.0);
+	Complex c2 = ZFXMath::TComplexN<float>(1.0, 0.0);
+	if(c1 == c1)
+		cout << "c1 == c1" << endl;
+</div>
+
+</body>
+</html>
