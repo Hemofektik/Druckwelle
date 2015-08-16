@@ -219,32 +219,33 @@ namespace Layers
 				return HGMRR_InvalidSRS;
 			}
 
+			auto result = HandleGetMapRequest(gmr, crs->second, (s16*)data);
+
 			switch (gmr.valueFormat)
 			{
-			case WebMapService::CF_INT16:
-			{
-				return HandleGetMapRequest(gmr, crs->second, (s16*)data);
-			}
-			case WebMapService::CF_UINT32:
-			{
-				auto result = HandleGetMapRequest(gmr, crs->second, (s16*)data);
-				if (result != HGMRR_OK) return result;
-				u32* dstColorStart = (u32*)data;
-				u32* dstColor = ((u32*)data) + gmr.width * gmr.height - 1;
-				s16* elevation = ((s16*)data) + gmr.width * gmr.height - 1;
-				while(dstColor >= dstColorStart) // convert elevation data to visual greyscale inplace
+				case WebMapService::CF_INT16:
 				{
-					u32 elevationAsGrayScale = (u32)max(0, min(255, (((s32)(*elevation)) * 255) / 8800));
-
-					*dstColor = 0xFF000000 | (elevationAsGrayScale << 16) | (elevationAsGrayScale << 8) | (elevationAsGrayScale << 0);
-
-					elevation--;
-					dstColor--;
+					return result;
 				}
-				return result;
-			}
-			default:
-				return HGMRR_InvalidFormat;
+				case WebMapService::CF_UINT32:
+				{
+					if (result != HGMRR_OK) return result;
+					u32* dstColorStart = (u32*)data;
+					u32* dstColor = ((u32*)data) + gmr.width * gmr.height - 1;
+					s16* elevation = ((s16*)data) + gmr.width * gmr.height - 1;
+					while(dstColor >= dstColorStart) // convert elevation data to visual greyscale inplace
+					{
+						u32 elevationAsGrayScale = (u32)max(0, min(255, (((s32)(*elevation)) * 255) / 250));
+
+						*dstColor = 0xFF000000 | (elevationAsGrayScale << 16) | (elevationAsGrayScale << 8) | (elevationAsGrayScale << 0);
+
+						elevation--;
+						dstColor--;
+					}
+					return result;
+				}
+				default:
+					return HGMRR_InvalidFormat;
 			}
 		}
 
@@ -290,7 +291,7 @@ namespace Layers
 			content.elevation = new s16[content.width * content.height];
 			content.quality = new s16[content.width * content.height];
 
-			if (demRasterBand->RasterIO(GF_Read, 0, 0, content.width, 1, content.elevation, content.width, 1, GDT_Int16, 0, 0) != CE_None)
+			if (demRasterBand->RasterIO(GF_Read, 0, 0, content.width, content.height, content.elevation, content.width, content.height, GDT_Int16, 0, 0) != CE_None)
 			{
 				goto err;
 			}
@@ -298,7 +299,7 @@ namespace Layers
 			auto numRasterBand = numDS->GetRasterBand(1);
 			if (!numRasterBand || numRasterBand->GetRasterDataType() != GDT_Int16) goto err;
 
-			if (numRasterBand->RasterIO(GF_Read, 0, 0, content.width, 1, content.quality, content.width, 1, GDT_Int16, 0, 0) != CE_None)
+			if (numRasterBand->RasterIO(GF_Read, 0, 0, content.width, content.height, content.quality, content.width, content.height, GDT_Int16, 0, 0) != CE_None)
 			{
 				goto err;
 			}
@@ -331,7 +332,21 @@ namespace Layers
 					return HGMRR_InternalError;
 				}
 
-				data[0] = 0;
+				const int stepX = tileContent.width / gmr.width;
+				const int stepY = tileContent.height / gmr.height;
+
+				s16* dest = data;
+				for (int y = 0; y < gmr.height; y++)
+				{
+					auto elevation = &tileContent.elevation[y * stepY * tileContent.width];
+					for (int x = 0; x < gmr.width; x++)
+					{
+						*dest = *elevation;
+
+						elevation += stepX;
+						dest++;
+					}
+				}
 			}
 
 			return HGMRR_OK;
