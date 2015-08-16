@@ -147,7 +147,7 @@ namespace dw
 				return HandleServiceException(connection, "InvalidCRS");
 			case dw::WebMapService::Layer::HGMRR_InvalidBBox:
 				return HandleServiceException(connection, "InvalidBBox");
-			case dw::WebMapService::Layer::HGMRR_OK:
+			case dw::WebMapService::Layer::HGMRR_InternalError:
 			default:
 				return HandleServiceException(connection, "Internal Error");
 				break;
@@ -167,7 +167,7 @@ namespace dw
 
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
-		std::cout << "GetMapRequest was processed within " << std::setprecision(2) << time_span.count() << " ms" << endl;
+		std::cout << "GetMapRequest was processed within " << std::setprecision(5) << time_span.count() << " ms" << endl;
 
 		return ret;
 	}

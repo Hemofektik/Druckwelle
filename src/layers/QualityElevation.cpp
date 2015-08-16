@@ -6,9 +6,14 @@
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
 
+#pragma warning (push)
+#pragma warning (disable:4251)
+#include <gdal_priv.h>
+#pragma warning (pop)
+#include <cpl_vsi.h>
+
 #include <ZFXMath.h>
 
-#include "../utils/ReadZIP.h"
 #include "../WebMapService.h"
 
 using namespace std;
@@ -40,21 +45,24 @@ namespace Layers
 		{
 			int longitude;
 			int latitude;
-			path filename;
+			astring filename_dem;
+			astring filename_num;
 		};
 
 		struct ASTERTileContent
 		{
-			uint8_t* elevation;
-			uint64_t elevationSize;
-			uint8_t* quality;
-			uint64_t qualitySize;
+			s16* elevation;
+			s16* quality;
 
-			ZIPFile sourceFile;
+			int width;
+			int height;
+
+			double geoTransform[6];
 
 			~ASTERTileContent()
 			{
-				DestroyZIPFile(sourceFile);
+				delete[] elevation;
+				delete[] quality;
 			}
 		};
 
@@ -74,9 +82,11 @@ namespace Layers
 
 		virtual bool Init(/* layerconfig */) override
 		{
+			GDALRegister_GTiff();
+
 			supportedCRS =
 			{
-				pair<astring, OGRSpatialReference*>("EPSG:3857", new OGRSpatialReference()),
+				//pair<astring, OGRSpatialReference*>("EPSG:3857", new OGRSpatialReference()),
 				pair<astring, OGRSpatialReference*>("EPSG:4326", new OGRSpatialReference())
 			};
 
@@ -143,6 +153,7 @@ namespace Layers
 			}
 
 			asterTiles = new ASTERTile[NumASTERTilesX * NumASTERTilesY];
+			memset(asterTiles, 0, sizeof(ASTERTile) * NumASTERTilesX * NumASTERTilesY);
 			for (int y = asterTileStartLatitude; y <= asterTileEndLatitude; y++)
 			{
 				for (int x = AsterTileStartLongitude; x <= AsterTileEndLongitude; x++)
@@ -161,11 +172,15 @@ namespace Layers
 					else if (absX < 100) filename += "0";
 					filename += to_string(absX);
 
-					tile.filename = ASTERSourceDir.string() + "ASTGTM2_" + filename + ".zip";
+					astring zipFilename = ASTERSourceDir.string() + "ASTGTM2_" + filename + ".zip";
 
-					if (!exists(tile.filename))
+					if (exists(zipFilename))
 					{
-						tile.filename = "";
+						tile.filename_dem = "/vsizip/" + zipFilename + "/ASTGTM2_" + filename + "_dem.tif";
+						tile.filename_num = "/vsizip/" + zipFilename + "/ASTGTM2_" + filename + "_num.tif";
+					}
+					else
+					{
 						tile.latitude = MissingTileCoordinate;
 						tile.longitude = MissingTileCoordinate;
 					}
@@ -230,41 +245,49 @@ namespace Layers
 			}
 		}
 
-		bool GetFileFromZip(const ZIPFile& file, astring endsWidth, uint8_t*& data, uint64_t& dataSize)
-		{
-			for (uint64_t i = 0; i < file.numItems; i++)
-			{
-				auto& item = file.items[i];
-				size_t pos = item.name.rfind(endsWidth);
-				if (pos != astring::npos)
-				{
-					data = item.data;
-					dataSize = item.dataSize;
-					return true;
-				}
-			}
-
-			return false;
-		}
-
 		bool LoadASTERTileContent(const ASTERTile* tile, ASTERTileContent& content)
 		{
-			if (!ReadZIPFile(tile->filename.string(), content.sourceFile, true))
+			content.elevation = NULL;
+			content.quality = NULL;
+
+			GDALDataset* demDS = NULL;
+			GDALDataset* numDS = NULL;
+
+			demDS = (GDALDataset*)GDALOpen(tile->filename_dem.c_str(), GA_ReadOnly);
+			if (!demDS) goto err;
+
+			numDS = (GDALDataset*)GDALOpen(tile->filename_num.c_str(), GA_ReadOnly);
+			if (!numDS) goto err;
+
+			if (demDS->GetGeoTransform(content.geoTransform) != CE_None) goto err;
+
+			auto demRasterBand = demDS->GetRasterBand(1);
+			if (!demRasterBand || demRasterBand->GetRasterDataType() != GDT_Int16) goto err;
+
+			content.width = demRasterBand->GetXSize();
+			content.height = demRasterBand->GetYSize();
+
+			content.elevation = new s16[content.width * content.height];
+			content.quality = new s16[content.width * content.height];
+
+			if (demRasterBand->RasterIO(GF_Read, 0, 0, content.width, 1, content.elevation, content.width, 1, GDT_Int16, 0, 0) != CE_None)
 			{
-				return false;
+				goto err;
 			}
 
-			if (!GetFileFromZip(content.sourceFile, "_dem.tif", content.elevation, content.elevationSize))
-			{
-				return false;
-			}
+			auto numRasterBand = numDS->GetRasterBand(1);
+			if (!numRasterBand || numRasterBand->GetRasterDataType() != GDT_Int16) goto err;
 
-			if (!GetFileFromZip(content.sourceFile, "_num.tif", content.quality, content.qualitySize))
+			if (numRasterBand->RasterIO(GF_Read, 0, 0, content.width, 1, content.quality, content.width, 1, GDT_Int16, 0, 0) != CE_None)
 			{
-				return false;
+				goto err;
 			}
 
 			return true;
+		err:
+			GDALClose(demDS);
+			GDALClose(numDS);
+			return false;
 		}
 
 		template<typename T>
@@ -288,7 +311,7 @@ namespace Layers
 					return HGMRR_InternalError;
 				}
 
-
+				
 			}
 
 			const int numPixels = gmr.width * gmr.height;
