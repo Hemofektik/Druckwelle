@@ -221,8 +221,28 @@ namespace Layers
 
 			switch (gmr.valueFormat)
 			{
+			case WebMapService::CF_INT16:
+			{
+				return HandleGetMapRequest(gmr, crs->second, (s16*)data);
+			}
 			case WebMapService::CF_UINT32:
-				return HandleGetMapRequest<u32>(gmr, crs->second, (u32*)data);
+			{
+				auto result = HandleGetMapRequest(gmr, crs->second, (s16*)data);
+				if (result != HGMRR_OK) return result;
+				u32* dstColorStart = (u32*)data;
+				u32* dstColor = ((u32*)data) + gmr.width * gmr.height - 1;
+				s16* elevation = ((s16*)data) + gmr.width * gmr.height - 1;
+				while(dstColor >= dstColorStart) // convert elevation data to visual greyscale inplace
+				{
+					u32 elevationAsGrayScale = (u32)max(0, min(255, (((s32)(*elevation)) * 255) / 8800));
+
+					*dstColor = 0xFF000000 | (elevationAsGrayScale << 16) | (elevationAsGrayScale << 8) | (elevationAsGrayScale << 0);
+
+					elevation--;
+					dstColor--;
+				}
+				return result;
+			}
 			default:
 				return HGMRR_InvalidFormat;
 			}
@@ -290,8 +310,8 @@ namespace Layers
 			return false;
 		}
 
-		template<typename T>
-		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, T* data)
+
+		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, s16* data)
 		{
 			WebMapService::GetMapRequest::BBox asterBBox;
 			if (!TransformBBox(gmr.bbox, asterBBox, requestSRS, ASTER_EPSG))
@@ -311,13 +331,7 @@ namespace Layers
 					return HGMRR_InternalError;
 				}
 
-				
-			}
-
-			const int numPixels = gmr.width * gmr.height;
-			for (size_t p = 0; p < numPixels; p++)
-			{
-				data[p] = 0xFF0000FF;
+				data[0] = 0;
 			}
 
 			return HGMRR_OK;
