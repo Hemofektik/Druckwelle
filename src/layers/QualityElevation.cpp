@@ -87,8 +87,8 @@ namespace Layers
 
 			supportedCRS =
 			{
-				//pair<astring, OGRSpatialReference*>("EPSG:3857", new OGRSpatialReference()),
-				pair<astring, OGRSpatialReference*>("EPSG:4326", new OGRSpatialReference())
+				//pair<astring, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
+				pair<astring, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
 			};
 
 			for (auto it = supportedCRS.begin(); it != supportedCRS.end(); it++)
@@ -164,7 +164,7 @@ namespace Layers
 
 			if (NumASTERTilesY == 0)
 			{
-				cout << "ASTER data not found" << endl;
+				cout << "Quality Elevation Layer: " << "ASTER data not found in " << ASTERSourceDir << endl;
 				return false;
 			}
 
@@ -269,7 +269,7 @@ namespace Layers
 
 			for each (auto crs in supportedCRS)
 			{
-				delete crs.second;
+				OGRSpatialReference::DestroySpatialReference(crs.second);
 			}
 
 			for each (auto trans in srsTransforms)
