@@ -8,24 +8,13 @@
 
 namespace dw
 {
-	class WebMapService
+	class WebMapTileService
 	{
 	public:
-
-		struct GetMapRequest
+		struct GetTileRequest
 		{
-			struct BBox
-			{
-				double minX;
-				double minY;
-				double maxX;
-				double maxY;
-			};
-			astring styles;
-			astring crs;
-			BBox bbox;
-			int width;
-			int height;
+			int tileCol;
+			int tileRow;
 
 			DataType dataType;
 		};
@@ -34,29 +23,25 @@ namespace dw
 		{
 		public:
 
-			enum HandleGetMapRequestResult
+			enum HandleGetTileRequestResult
 			{
 				HGMRR_OK,
 				HGMRR_InvalidStyle,
 				HGMRR_InvalidFormat,
-				HGMRR_InvalidBBox,
-				HGMRR_InvalidSRS,
 				HGMRR_InternalError, // e.g. file corrupt/missing
 			};
 
 			virtual ~Layer() {};
 
 			virtual bool Init(/* layerconfig */) { return true; };  // return true on successful init
- 			virtual const char* GetName() const = 0;				// computer readable name (unique identification)
+ 			virtual const char* GetIdentifier() const = 0;			// computer readable name (unique identification)
 			virtual const char_t* GetTitle() const = 0;				// human readable name
 			virtual const char_t* GetAbstract()  const { return NULL; };
-			virtual const int GetFixedWidth() const { return 0; };
-			virtual const int GetFixedHeight() const { return 0; };
-			virtual const int GetMaxWidth() const { return 0; };
-			virtual const int GetMaxHeight() const { return 0; };
+			virtual int GetTileWidth() const = 0;
+			virtual int GetTileHeight() const = 0;
 			virtual const std::vector<DataType>& GetSuppordetFormats() const = 0;
 
-			virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) = 0;
+			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gtr, u8* data) = 0;
 		};
 
 		typedef Layer* (*CreateLayer)();
@@ -95,20 +80,19 @@ namespace dw
 			}
 		};
 
-		WebMapService();
+		WebMapTileService();
 
 		int Start();
 		void Stop();
 
 		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);
 	private:
-
-		int HandleGetMapRequest(struct MHD_Connection *connection, const astring& layers, ContentType contentType, struct GetMapRequest& gmr);
+		int HandleGetTileRequest(struct MHD_Connection *connection, const astring& layers, ContentType contentType, struct GetTileRequest& gtr);
 
 		std::map<astring, Layer*> availableLayers;
 	};
 
-	#define IMPLEMENT_WEBMAPSERVICE_LAYER(Class, Name, Title) \
-		static WebMapService::Layer* Construct##LayerName() { return new Class(); } \
-		WebMapService::LayerFactory Class##Factory(LayerName, LayerTitle, Construct##LayerName);
+	#define IMPLEMENT_WEBMAPTILESERVICE_LAYER(Class, Name, Title) \
+		static WebMapTileService::Layer* Construct##LayerName() { return new Class(); } \
+		WebMapTileService::LayerFactory Class##Factory(LayerName, LayerTitle, Construct##LayerName);
 }

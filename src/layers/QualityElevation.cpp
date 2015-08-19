@@ -200,16 +200,11 @@ namespace Layers
 			return LayerTitle.c_str();
 		}
 
-		virtual const int GetFixedWidth() const override
+		virtual const vector<DataType>& GetSuppordetFormats() const override
 		{
-			return 3600 * 360; // number of arc seconds around longitude
+			static const vector<DataType> SuppordetFormats = { DT_RGBA8, DT_S16 };
+			return SuppordetFormats;
 		}
-
-		virtual const int GetFixedHeight() const override
-		{
-			return 3600 * 180; // number of arc seconds around latitude
-		}
-
 
 		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) override
 		{
@@ -221,13 +216,13 @@ namespace Layers
 
 			auto result = HandleGetMapRequest(gmr, crs->second, (s16*)data);
 
-			switch (gmr.valueFormat)
+			switch (gmr.dataType)
 			{
-				case WebMapService::CF_INT16:
+				case DT_S16:
 				{
 					return result;
 				}
-				case WebMapService::CF_UINT32:
+				case DT_RGBA8:
 				{
 					if (result != HGMRR_OK) return result;
 					u32* dstColorStart = (u32*)data;
@@ -320,6 +315,8 @@ namespace Layers
 				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 			}
 
+			// TODO: compute BBox padding to load tiles for in order to provide all data the used filter needs
+
 			vector<ASTERTile*> asterTilesTouched;
 			GetASTERTiles(asterTilesTouched, asterBBox);
 
@@ -332,6 +329,7 @@ namespace Layers
 					return HGMRR_InternalError;
 				}
 
+				// TODO: implement proper sampling method here (e.g. lanczos)
 				const int stepX = tileContent.width / gmr.width;
 				const int stepY = tileContent.height / gmr.height;
 

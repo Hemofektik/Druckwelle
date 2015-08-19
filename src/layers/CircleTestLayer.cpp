@@ -1,6 +1,8 @@
 
 #include "../WebMapService.h"
 
+using namespace std;
+
 namespace dw
 {
 namespace Layers
@@ -24,6 +26,12 @@ namespace Layers
 			return LayerTitle.c_str();
 		}
 
+		virtual const vector<DataType>& GetSuppordetFormats() const override
+		{
+			static const vector<DataType> SuppordetFormats = { DT_RGBA8 };
+			return SuppordetFormats;
+		}
+
 		template<typename T>
 		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, T* data, T circleColor)
 		{
@@ -43,9 +51,9 @@ namespace Layers
 
 		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) override
 		{
-			switch (gmr.valueFormat)
+			switch (gmr.dataType)
 			{
-			case WebMapService::CF_UINT32:
+			case DT_RGBA8:
 				return HandleGetMapRequest<u32>(gmr, (u32*)data, 0xFF0000FF);
 			default:
 				return HGMRR_InvalidFormat;
