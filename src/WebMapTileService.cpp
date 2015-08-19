@@ -136,7 +136,7 @@ namespace dw
 		ConvertRawImageToContentType(image, contentType);
 		struct MHD_Response* response = MHD_create_response_from_buffer(image.processedDataSize, image.processedData, MHD_RESPMEM_MUST_COPY);
 
-		int success = MHD_add_response_header(response, "Content-Type", "image/png");
+		int success = MHD_add_response_header(response, "Content-Type", ContentTypeId[contentType].c_str());
 		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 		MHD_destroy_response(response);
 
