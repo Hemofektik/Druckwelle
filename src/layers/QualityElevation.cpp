@@ -2,6 +2,7 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
+#include <memory>
 
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
@@ -202,7 +203,7 @@ namespace Layers
 
 		virtual const vector<DataType>& GetSuppordetFormats() const override
 		{
-			static const vector<DataType> SuppordetFormats = { DT_RGBA8, DT_S16 };
+			static const vector<DataType> SuppordetFormats = { DT_U8, DT_S16 };
 			return SuppordetFormats;
 		}
 
@@ -214,28 +215,29 @@ namespace Layers
 				return HGMRR_InvalidSRS;
 			}
 
-			auto result = HandleGetMapRequest(gmr, crs->second, (s16*)data);
 
 			switch (gmr.dataType)
 			{
 				case DT_S16:
 				{
-					return result;
+					return HandleGetMapRequest(gmr, crs->second, (s16*)data);
 				}
-				case DT_RGBA8:
+				case DT_U8:
 				{
+					unique_ptr<s16> elevationData(new s16[gmr.width * gmr.height]);
+					auto result = HandleGetMapRequest(gmr, crs->second, elevationData.get());
 					if (result != HGMRR_OK) return result;
-					u32* dstColorStart = (u32*)data;
-					u32* dstColor = ((u32*)data) + gmr.width * gmr.height - 1;
-					s16* elevation = ((s16*)data) + gmr.width * gmr.height - 1;
-					while(dstColor >= dstColorStart) // convert elevation data to visual greyscale inplace
+					u8* dstGreyScaleEnd = data + gmr.width * gmr.height;
+					u8* dstGreyScale = data;
+					s16* elevation = elevationData.get();
+					while(dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
 					{
-						u32 elevationAsGrayScale = (u32)max(0, min(255, (((s32)(*elevation)) * 255) / 250));
+						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation, 0, 255);
 
-						*dstColor = 0xFF000000 | (elevationAsGrayScale << 16) | (elevationAsGrayScale << 8) | (elevationAsGrayScale << 0);
+						*dstGreyScale = elevationAsGrayScale;
 
-						elevation--;
-						dstColor--;
+						elevation++;
+						dstGreyScale++;
 					}
 					return result;
 				}
