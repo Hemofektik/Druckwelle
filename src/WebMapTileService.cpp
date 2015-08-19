@@ -60,7 +60,7 @@ namespace dw
 
 			astring layerTitle(layerDesc.title.cbegin(), layerDesc.title.cend());
 			cout << "WebMapTileService: Loading layer: " << layerTitle << '\r';
-			if (newLayer->Init())
+			if (newLayer->Init( /* layerconfig */ ))
 			{
 				layers[layerDesc.name] = newLayer;
 				cout << "WebMapTileService: Enabled layer: " << layerTitle << endl;
@@ -117,16 +117,16 @@ namespace dw
 
 		Image image(tileWidth, tileHeight, gtr.dataType);
 
-		Layer::HandleGetTileRequestResult result = availableLayer->second->HandleGetTileRequest(gtr, image.rawData);
-		if (result != Layer::HGMRR_OK)
+		Layer::HandleGetTileRequestResult result = layer.HandleGetTileRequest(gtr, image.rawData);
+		if (result != Layer::HGTRR_OK)
 		{
 			switch (result)
 			{
-			case dw::WebMapTileService::Layer::HGMRR_InvalidStyle:
+			case dw::WebMapTileService::Layer::HGTRR_InvalidStyle:
 				return HandleServiceException(connection, "StyleNotDefined");
-			case dw::WebMapTileService::Layer::HGMRR_InvalidFormat:
+			case dw::WebMapTileService::Layer::HGTRR_InvalidFormat:
 				return HandleServiceException(connection, "InvalidFormat");
-			case dw::WebMapTileService::Layer::HGMRR_InternalError:
+			case dw::WebMapTileService::Layer::HGTRR_InternalError:
 			default:
 				return HandleServiceException(connection, "Internal Error");
 				break;

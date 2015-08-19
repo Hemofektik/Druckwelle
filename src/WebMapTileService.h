@@ -25,10 +25,10 @@ namespace dw
 
 			enum HandleGetTileRequestResult
 			{
-				HGMRR_OK,
-				HGMRR_InvalidStyle,
-				HGMRR_InvalidFormat,
-				HGMRR_InternalError, // e.g. file corrupt/missing
+				HGTRR_OK,
+				HGTRR_InvalidStyle,
+				HGTRR_InvalidFormat,
+				HGTRR_InternalError, // e.g. file corrupt/missing
 			};
 
 			virtual ~Layer() {};
@@ -94,5 +94,5 @@ namespace dw
 
 	#define IMPLEMENT_WEBMAPTILESERVICE_LAYER(Class, Name, Title) \
 		static WebMapTileService::Layer* Construct##LayerName() { return new Class(); } \
-		WebMapTileService::LayerFactory Class##Factory(LayerName, LayerTitle, Construct##LayerName);
+		WebMapTileService::LayerFactory Class##Factory(Name, Title, Construct##LayerName);
 }

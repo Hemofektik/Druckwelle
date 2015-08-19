@@ -109,6 +109,6 @@ namespace dw
 	};
 
 	#define IMPLEMENT_WEBMAPSERVICE_LAYER(Class, Name, Title) \
-		static WebMapService::Layer* Construct##LayerName() { return new Class(); } \
-		WebMapService::LayerFactory Class##Factory(LayerName, LayerTitle, Construct##LayerName);
+		static WebMapService::Layer* Construct##Name() { return new Class(); } \
+		WebMapService::LayerFactory Class##Factory(Name, Title, Construct##LayerName);
 }
