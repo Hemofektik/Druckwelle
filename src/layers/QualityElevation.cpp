@@ -116,8 +116,8 @@ namespace Layers
 			}
 
 			// load TOC from disk
-			const path ASTERSourceDir("D:/ASTER/");
-			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
+			//const path ASTERSourceDir("D:/ASTER/");
+			const path ASTERSourceDir("C:/Dev/temp/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
@@ -247,7 +247,7 @@ namespace Layers
 					s16* elevation = elevationData.get();
 					while(dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
 					{
-						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation, 0, 255);
+						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation / 32, 0, 255);
 
 						*dstGreyScale = elevationAsGrayScale;
 
