@@ -58,16 +58,15 @@ namespace dw
 		{
 			Layer* newLayer = layerDesc.createLayer();
 
-			astring layerTitle(layerDesc.title.cbegin(), layerDesc.title.cend());
-			cout << "WebMapTileService: Loading layer: " << layerTitle << '\r';
+			cout << "WebMapTileService: Loading layer: " << layerDesc.name << '\r';
 			if (newLayer->Init( /* layerconfig */ ))
 			{
 				layers[layerDesc.name] = newLayer;
-				cout << "WebMapTileService: Enabled layer: " << layerTitle << endl;
+				wcout << "WebMapTileService: Activated layer: " << newLayer->GetTitle() << endl;
 			}
 			else
 			{
-				cout << "WebMapTileService: Discarded layer: " << layerTitle << endl;
+				cout << "WebMapTileService: Discarded layer: " << layerDesc.name << endl;
 				delete newLayer;
 			}
 		}
