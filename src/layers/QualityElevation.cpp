@@ -116,9 +116,11 @@ namespace Layers
 			}
 
 			// load TOC from disk
-			//const path ASTERSourceDir("D:/ASTER/");
-			const path ASTERSourceDir("C:/Dev/temp/ASTER/");
+			const path ASTERSourceDir("D:/ASTER/");
+			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
 
+			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
+			memset(fileExists.get(), 0, NumASTERTilesX * 180);
 			asterTileStartLatitude = 90;
 			asterTileEndLatitude = -90;
 			for (directory_iterator di(ASTERSourceDir); di != end(di); di++)
@@ -129,15 +131,28 @@ namespace Layers
 				{
 					astring filepath = entity.path().string();
 					int latitudeSign = 1;
-					size_t offset = filepath.find_last_of('N');
-					if (offset == std::string::npos)
+					int longitudeSign = 1;
+
+					size_t coordinateStart = filepath.find_last_of('_');
+					size_t latOffset = filepath.find_last_of('N');
+					if (latOffset == std::string::npos || latOffset < coordinateStart)
 					{
-						offset = filepath.find_last_of('S');
+						latOffset = filepath.find_last_of('S');
 						latitudeSign = -1;
 					}
-					if (offset != std::string::npos)
+					size_t lonOffset = filepath.find_last_of('E');
+					if (lonOffset == std::string::npos || lonOffset < coordinateStart)
 					{
-						int latitude = atoi(filepath.c_str() + offset + 1) * latitudeSign;
+						lonOffset = filepath.find_last_of('W');
+						longitudeSign = -1;
+					}
+					if (latOffset != std::string::npos)
+					{
+						int latitude = atoi(filepath.c_str() + latOffset + 1) * latitudeSign;
+						int longitude = atoi(filepath.c_str() + lonOffset + 1) * longitudeSign;
+
+						fileExists.get()[(latitude + 90) * NumASTERTilesX + longitude + 180] = true;
+
 						asterTileStartLatitude = min(asterTileStartLatitude, latitude);
 						asterTileEndLatitude = max(asterTileEndLatitude, latitude);
 					}
@@ -175,7 +190,7 @@ namespace Layers
 
 					astring zipFilename = ASTERSourceDir.string() + "ASTGTM2_" + filename + ".zip";
 
-					if (exists(zipFilename))
+					if (fileExists.get()[(y + 90) * NumASTERTilesX + x + 180])
 					{
 						tile.filename_dem = "/vsizip/" + zipFilename + "/ASTGTM2_" + filename + "_dem.tif";
 						tile.filename_num = "/vsizip/" + zipFilename + "/ASTGTM2_" + filename + "_num.tif";
