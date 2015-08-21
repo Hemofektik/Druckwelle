@@ -303,17 +303,27 @@ namespace Layers
 			content.elevation = new s16[content.width * content.height];
 			content.quality = new s16[content.width * content.height];
 
-			if (demRasterBand->RasterIO(GF_Read, 0, 0, content.width, content.height, content.elevation, content.width, content.height, GDT_Int16, 0, 0) != CE_None)
+			int blockSizeX, blockSizeY;
+			demRasterBand->GetBlockSize(&blockSizeX, &blockSizeY);
+			if (blockSizeX != content.width && blockSizeY != 1) goto err;
+
+			for (int y = 0; y < content.height; y++)
 			{
-				goto err;
+				if (demRasterBand->ReadBlock(0, y, &content.elevation[y * content.width]) != CE_None)
+				{
+					goto err;
+				}
 			}
 
 			auto numRasterBand = numDS->GetRasterBand(1);
 			if (!numRasterBand || numRasterBand->GetRasterDataType() != GDT_Int16) goto err;
 
-			if (numRasterBand->RasterIO(GF_Read, 0, 0, content.width, content.height, content.quality, content.width, content.height, GDT_Int16, 0, 0) != CE_None)
+			for (int y = 0; y < content.height; y++)
 			{
-				goto err;
+				if (numRasterBand->ReadBlock(0, y, &content.quality[y * content.width]) != CE_None)
+				{
+					goto err;
+				}
 			}
 
 			return true;

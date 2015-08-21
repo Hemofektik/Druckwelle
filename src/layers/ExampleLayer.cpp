@@ -7,8 +7,8 @@ namespace dw
 {
 namespace Layers
 {
-	const astring LayerName = "CircleTestLayer";
-	const string LayerTitle = dwTEXT("Circle Rendering Test Layer");
+	const astring LayerName = "ExampleLayer";
+	const string LayerTitle = dwTEXT("Example Layer showing how to implement the basics for your own layer");
 
 	class CircleTestLayer : public WebMapService::Layer
 	{
