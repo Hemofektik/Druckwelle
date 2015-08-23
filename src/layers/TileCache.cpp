@@ -5,7 +5,6 @@
 #include "Poco/Net/HTTPClientSession.h"
 #include "Poco/Net/HTTPRequest.h"
 #include "Poco/Net/HTTPResponse.h"
-#include "Poco/StreamCopier.h"
 #include <istream>
 #include <ostream>
 #include <sstream>
@@ -17,7 +16,6 @@ using namespace std;
 using Poco::Net::HTTPClientSession;
 using Poco::Net::HTTPRequest;
 using Poco::Net::HTTPResponse;
-using Poco::StreamCopier;
 
 namespace dw
 {
@@ -73,8 +71,18 @@ namespace dw
 
 			void CreateTileCacheAsync()
 			{
-				astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=10.0,46.0,11.0,47.0&CRS=EPSG:4326&WIDTH=3601&HEIGHT=3601&LAYERS=QualityElevation&STYLES=";
+				// TODO: enumerate all top level tiles and create missing ones
+
+				int width = 3601;
+				int height = 3601;
+				ContentType ct = CT_Image_Raw_S16;
+				DataType dt = DT_S16;
+
+				astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=10.0,46.0,11.0,47.0&CRS=EPSG:4326&LAYERS=QualityElevation&STYLES=";
+				tileRequestUri += "&WIDTH=" + to_string(width); 
+				tileRequestUri += "&HEIGHT=" + to_string(height);
 				tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
+
 				HTTPClientSession s("localhost", 8282);
 				HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
 
@@ -82,14 +90,18 @@ namespace dw
 				HTTPResponse response;
 				istream& rs = s.receiveResponse(response);
 
-				ostringstream ostr;
-				streamsize dataLength = StreamCopier::copyStream(rs, ostr);
-				//ostr.str();
-				
-				while (true)
+				size expectedTileSize = width * height * DataTypePixelSize[dt];
+				u8* data = new u8[expectedTileSize];
+
+				std::streamsize len = 0;
+				rs.read((char*)data, expectedTileSize);
+				std::streamsize readSize = rs.gcount();
+				if (readSize < expectedTileSize)
 				{
-					this_thread::sleep_for(chrono::seconds(1));
+					return; // TODO: handle error in a meaningful way
 				}
+
+				delete[] data;
 			}
 		};
 
