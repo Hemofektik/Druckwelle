@@ -40,9 +40,9 @@ namespace dw
 	{
 		"unknown",
 		"image/png",
-		"application/raw-s16"
-		"application/raw-u8"
-		"application/raw-u32"
+		"application/raw-s16",
+		"application/raw-u8",
+		"application/raw-u32",
 	};
 
 	enum DataType

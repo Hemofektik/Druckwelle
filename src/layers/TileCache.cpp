@@ -73,9 +73,11 @@ namespace dw
 
 			void CreateTileCacheAsync()
 			{
-				astring tileRequestUrl = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=10.0,46.0,11.0,47.0&CRS=EPSG:4326&WIDTH=128&HEIGHT=128&LAYERS=QualityElevation&STYLES=&FORMAT=image/png";
+				astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=10.0,46.0,11.0,47.0&CRS=EPSG:4326&WIDTH=3601&HEIGHT=3601&LAYERS=QualityElevation&STYLES=";
+				tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
 				HTTPClientSession s("localhost", 8282);
-				HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUrl);
+				HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
+
 				s.sendRequest(request);
 				HTTPResponse response;
 				istream& rs = s.receiveResponse(response);

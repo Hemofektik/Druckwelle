@@ -71,7 +71,7 @@ namespace dw
 				if (contentType == CT_Image_Raw_U32 && image.rawDataType != DT_RGBA8 && image.rawDataType != DT_U32) return false;
 
 				image.processedData = image.rawData;
-				image.processedDataSize = image.rawPixelSize;
+				image.processedDataSize = image.rawDataSize;
 				return true;
 			case CT_Unknown:
 			default:
