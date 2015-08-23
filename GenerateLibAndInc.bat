@@ -60,6 +60,10 @@ xcopy /E /Y 3rdparty\GeometricTools\lib lib
 :: ZFXMath
 xcopy /E /Y 3rdparty\ZFXMath\include inc
 
+:: poco
+xcopy /E /Y 3rdparty\poco\include inc
+xcopy /E /Y 3rdparty\poco\lib lib
+xcopy /E /Y 3rdparty\poco\bin\*.dll bin
 
 
 mkdir bin\Debug

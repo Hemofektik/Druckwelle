@@ -15,6 +15,7 @@ foreach(f ${SOURCES})
     source_group("${SRCGR}" FILES ${f})
 endforeach()
 
+add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 
 include_directories(
 	${CMAKE_SOURCE_DIR}/inc
@@ -25,7 +26,13 @@ link_libraries (
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
 	${CMAKE_SOURCE_DIR}/lib/gsl.lib
 	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
+	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
+	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
+	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
+	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
 )
+
+
 
 add_executable (
    druckwelle
