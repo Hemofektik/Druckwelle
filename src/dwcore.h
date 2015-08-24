@@ -9,7 +9,7 @@ namespace dw
 
 	typedef std::string		astring;
 	typedef std::wstring	string;
-	#define dwTEXT(t)		(L##t)
+	#define dwTEXT(t)		L##t
 
 	typedef int8_t			s8;
 	typedef int16_t			s16;

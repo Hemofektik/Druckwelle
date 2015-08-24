@@ -28,6 +28,10 @@ namespace Layers
 {
 	const astring LayerName = "QualityElevation";
 	const string LayerTitle = dwTEXT("ASTER + SRTMv3 High Quality Elevation Service");
+	const string LayerAbstract =
+		dwTEXT("The native resolution of this layer is 1 arc second per pixel.")
+		dwTEXT("A request's bounding box must not exceed 1° in width and height.")
+		dwTEXT("It will throw an InvalidBBox Service Exception otherwise.");
 
 	class QualityElevation : public WebMapService::Layer
 	{
@@ -215,6 +219,11 @@ namespace Layers
 		{
 			return LayerTitle.c_str();
 		}
+
+		virtual const char_t* GetAbstract()  const override
+		{ 
+			return LayerAbstract.c_str(); 
+		};
 
 		virtual const vector<DataType>& GetSuppordetFormats() const override
 		{
