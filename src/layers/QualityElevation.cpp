@@ -347,6 +347,11 @@ namespace Layers
 			vector<ASTERTile*> asterTilesTouched;
 			GetASTERTiles(asterTilesTouched, asterBBox);
 
+			const s16 InvalidValueASTER = -9999;
+
+			static_assert(sizeof(wchar_t) == sizeof(s16), "Need explicit two byte memset");
+			wmemset((wchar_t*)data, InvalidValueASTER, gmr.width * gmr.height);
+
 			for each (const auto& tile in asterTilesTouched)
 			{
 				ASTERTileContent tileContent;

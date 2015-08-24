@@ -76,29 +76,40 @@ namespace dw
 				int width = 3601;
 				int height = 3601;
 				ContentType ct = CT_Image_Raw_S16;
-				DataType dt = DT_S16;
-
-				astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=10.0,46.0,11.0,47.0&CRS=EPSG:4326&LAYERS=QualityElevation&STYLES=";
-				tileRequestUri += "&WIDTH=" + to_string(width); 
-				tileRequestUri += "&HEIGHT=" + to_string(height);
-				tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
-
-				HTTPClientSession s("localhost", 8282);
-				HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
-
-				s.sendRequest(request);
-				HTTPResponse response;
-				istream& rs = s.receiveResponse(response);
-
+				DataType dt = DT_S16; 
+				
 				size expectedTileSize = width * height * DataTypePixelSize[dt];
 				u8* data = new u8[expectedTileSize];
 
-				std::streamsize len = 0;
-				rs.read((char*)data, expectedTileSize);
-				std::streamsize readSize = rs.gcount();
-				if (readSize < expectedTileSize)
+				bool runCacheCreation = true;
+				for (int y = 43; y < 53 && runCacheCreation; y++)
 				{
-					return; // TODO: handle error in a meaningful way
+					for (int x = 0; x < 14; x++)
+					{
+						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=QualityElevation&STYLES=";
+						tileRequestUri += "&WIDTH=" + to_string(width);
+						tileRequestUri += "&HEIGHT=" + to_string(height);
+						tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
+						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 1) + "," + to_string(y + 1); // 10.0,46.0,11.0,47.0
+
+						HTTPClientSession s("localhost", 8282);
+						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
+
+						s.sendRequest(request);
+						HTTPResponse response;
+						istream& rs = s.receiveResponse(response);
+
+						std::streamsize len = 0;
+						rs.read((char*)data, expectedTileSize);
+						std::streamsize readSize = rs.gcount();
+						if (readSize < expectedTileSize)
+						{
+							runCacheCreation = false;
+							break;
+						}
+
+						// TODO: pass tile to cache creator thingy
+					}
 				}
 
 				delete[] data;
