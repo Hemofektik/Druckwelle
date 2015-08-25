@@ -116,7 +116,7 @@ namespace dw
 
 		Image image(tileWidth, tileHeight, gtr.dataType);
 
-		Layer::HandleGetTileRequestResult result = layer.HandleGetTileRequest(gtr, image.rawData);
+		Layer::HandleGetTileRequestResult result = layer.HandleGetTileRequest(gtr, image);
 		if (result != Layer::HGTRR_OK)
 		{
 			switch (result)
@@ -132,7 +132,7 @@ namespace dw
 			}
 		}
 
-		ConvertRawImageToContentType(image, contentType);
+		utils::ConvertRawImageToContentType(image, contentType);
 		struct MHD_Response* response = MHD_create_response_from_buffer(image.processedDataSize, image.processedData, MHD_RESPMEM_MUST_COPY);
 
 		int success = MHD_add_response_header(response, "Content-Type", ContentTypeId[contentType].c_str());

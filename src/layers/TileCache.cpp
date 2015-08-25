@@ -62,7 +62,7 @@ namespace dw
 				return true; 
 			};
 
-			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gmr, u8* data) override
+			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gmr, Image& img) override
 			{
 				return HGTRR_OK;
 			}
@@ -73,8 +73,8 @@ namespace dw
 			{
 				// TODO: enumerate all top level tiles and create missing ones
 
-				int width = 3601;
-				int height = 3601;
+				int width = 128;
+				int height = 128;
 				ContentType ct = CT_Image_Raw_S16;
 				DataType dt = DT_S16; 
 				

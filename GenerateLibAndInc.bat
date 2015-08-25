@@ -68,5 +68,7 @@ xcopy /E /Y 3rdparty\poco\bin\*.dll bin
 
 mkdir bin\Debug
 mkdir bin\Release
+mkdir bin\RelWithDebInfo
 xcopy /Y bin\*.* bin\Debug
 xcopy /Y bin\*.* bin\Release
+xcopy /Y bin\*.* bin\RelWithDebInfo

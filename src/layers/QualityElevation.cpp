@@ -13,9 +13,12 @@
 #pragma warning (pop)
 #include <cpl_vsi.h>
 
+#include <omp.h>
+
 #include <ZFXMath.h>
 
 #include "../WebMapService.h"
+#include "../utils/ImageProcessor.h"
 
 using namespace std;
 using namespace std::experimental::filesystem::v1;
@@ -57,18 +60,12 @@ namespace Layers
 		struct ASTERTileContent
 		{
 			s16* elevation;
-			s16* quality;
+			//s16* quality;
 
 			int width;
 			int height;
 
 			double geoTransform[6];
-
-			~ASTERTileContent()
-			{
-				delete[] elevation;
-				delete[] quality;
-			}
 		};
 
 		map<astring, OGRSpatialReference*> supportedCRS;
@@ -82,6 +79,8 @@ namespace Layers
 		const int AsterTileEndLongitude = 179;
 		const int NumASTERTilesX = AsterTileEndLongitude - AsterTileStartLongitude + 1;
 		const int MissingTileCoordinate = -1000;
+		const double AsterPixelsPerDegree = 3600.0;
+		const double AsterDegreesPerPixel = 1.0 / AsterPixelsPerDegree;
 
 	public:
 
@@ -231,7 +230,7 @@ namespace Layers
 			return SuppordetFormats;
 		}
 
-		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) override
+		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, Image& img) override
 		{
 			auto crs = supportedCRS.find(gmr.crs);
 			if (crs == supportedCRS.end())
@@ -239,21 +238,20 @@ namespace Layers
 				return HGMRR_InvalidSRS;
 			}
 
-
 			switch (gmr.dataType)
 			{
 				case DT_S16:
 				{
-					return HandleGetMapRequest(gmr, crs->second, (s16*)data);
+					return HandleGetMapRequest(gmr, crs->second, img);
 				}
 				case DT_U8:
 				{
-					unique_ptr<s16> elevationData(new s16[gmr.width * gmr.height]);
-					auto result = HandleGetMapRequest(gmr, crs->second, elevationData.get());
+					Image s16Img(gmr.width, gmr.height, DT_S16);
+					auto result = HandleGetMapRequest(gmr, crs->second, s16Img);
 					if (result != HGMRR_OK) return result;
-					u8* dstGreyScaleEnd = data + gmr.width * gmr.height;
-					u8* dstGreyScale = data;
-					s16* elevation = elevationData.get();
+					u8* dstGreyScaleEnd = img.rawData + gmr.width * gmr.height;
+					u8* dstGreyScale = img.rawData;
+					s16* elevation = (s16*)s16Img.rawData;
 					while(dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
 					{
 						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation / 32, 0, 255);
@@ -287,19 +285,22 @@ namespace Layers
 			}
 		}
 
+		void UnloadASTERTileContent(ASTERTileContent& content)
+		{
+			delete[] content.elevation;
+			//delete[] content.quality;
+		}
+
 		bool LoadASTERTileContent(const ASTERTile* tile, ASTERTileContent& content)
 		{
-			content.elevation = NULL;
-			content.quality = NULL;
-
 			GDALDataset* demDS = NULL;
-			GDALDataset* numDS = NULL;
+			//GDALDataset* numDS = NULL;
 
 			demDS = (GDALDataset*)GDALOpen(tile->filename_dem.c_str(), GA_ReadOnly);
 			if (!demDS) goto err;
 
-			numDS = (GDALDataset*)GDALOpen(tile->filename_num.c_str(), GA_ReadOnly);
-			if (!numDS) goto err;
+			//numDS = (GDALDataset*)GDALOpen(tile->filename_num.c_str(), GA_ReadOnly);
+			//if (!numDS) goto err;
 
 			if (demDS->GetGeoTransform(content.geoTransform) != CE_None) goto err;
 
@@ -310,7 +311,7 @@ namespace Layers
 			content.height = demRasterBand->GetYSize();
 
 			content.elevation = new s16[content.width * content.height];
-			content.quality = new s16[content.width * content.height];
+			//content.quality = new s16[content.width * content.height];
 
 			int blockSizeX, blockSizeY;
 			demRasterBand->GetBlockSize(&blockSizeX, &blockSizeY);
@@ -324,7 +325,7 @@ namespace Layers
 				}
 			}
 
-			auto numRasterBand = numDS->GetRasterBand(1);
+			/*auto numRasterBand = numDS->GetRasterBand(1);
 			if (!numRasterBand || numRasterBand->GetRasterDataType() != GDT_Int16) goto err;
 
 			for (int y = 0; y < content.height; y++)
@@ -333,66 +334,86 @@ namespace Layers
 				{
 					goto err;
 				}
-			}
+			}*/
+
+			GDALClose(demDS);
+			//GDALClose(numDS);
 
 			return true;
 		err:
 			GDALClose(demDS);
-			GDALClose(numDS);
+			//GDALClose(numDS);
 			return false;
 		}
 
 
-		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, s16* data)
+		HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, Image& img)
 		{
-			WebMapService::GetMapRequest::BBox asterBBox;
+			assert(img.rawDataType == DT_S16);
+
+			BBox asterBBox;
 			if (!TransformBBox(gmr.bbox, asterBBox, requestSRS, ASTER_EPSG))
 			{
 				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 			}
 
-			// TODO: compute BBox padding to load tiles for in order to provide all data the used filter needs
+			const double DegreesPerPixelX = asterBBox.GetWidth() / img.width;
+			const double DegreesPerPixelY = asterBBox.GetHeight() / img.height;
+			utils::ExtendBoundingBoxForLanczos(asterBBox, AsterDegreesPerPixel, AsterDegreesPerPixel, DegreesPerPixelX, DegreesPerPixelY);
 
-			vector<ASTERTile*> asterTilesTouched;
-			GetASTERTiles(asterTilesTouched, asterBBox);
+			const int MaxNumAsterTilesX = 4;
+			const int MaxNumAsterTilesY = 4;
+
+			vector<ASTERTile*> asterTilesTouched; 
+			asterTilesTouched.reserve(MaxNumAsterTilesX * MaxNumAsterTilesY);
+			int asterStartX, asterStartY, numAsterTilesX, numAsterTilesY;
+			GetASTERTiles(asterTilesTouched, asterBBox, asterStartX, asterStartY, numAsterTilesX, numAsterTilesY);
+
+			if (numAsterTilesX > MaxNumAsterTilesX || numAsterTilesY > MaxNumAsterTilesY) // prevent requests which would take too much resources
+			{
+				return HGMRR_InvalidBBox;
+			}
+
+			ASTERTileContent asterTileContent[MaxNumAsterTilesX * MaxNumAsterTilesY];
+			memset(asterTileContent, 0, MaxNumAsterTilesX * MaxNumAsterTilesY * sizeof(ASTERTileContent));
 
 			const s16 InvalidValueASTER = -9999;
 
-			static_assert(sizeof(wchar_t) == sizeof(s16), "Need explicit two byte memset");
-			wmemset((wchar_t*)data, InvalidValueASTER, gmr.width * gmr.height);
-
-			for each (const auto& tile in asterTilesTouched)
+			HandleGetMapRequestResult result = HGMRR_OK;
+			const int numTiles = (int)asterTilesTouched.size();
+			#pragma omp parallel for
+			for (int t = 0; t < numTiles; t++)
 			{
-				ASTERTileContent tileContent;
+				const auto& tile = asterTilesTouched[t];
 
-				if (!LoadASTERTileContent(tile, tileContent))
+				int x = tile->longitude - asterStartX - AsterTileStartLongitude;
+				int y = tile->latitude - asterStartY - asterTileStartLatitude;
+
+				if (!LoadASTERTileContent(tile, asterTileContent[(numAsterTilesY - y - 1) * MaxNumAsterTilesX + x]))
 				{
-					return HGMRR_InternalError;
-				}
-
-				// TODO: implement proper sampling method here (e.g. lanczos)
-				const int stepX = tileContent.width / gmr.width;
-				const int stepY = tileContent.height / gmr.height;
-
-				s16* dest = data;
-				for (int y = 0; y < gmr.height; y++)
-				{
-					auto elevation = &tileContent.elevation[y * stepY * tileContent.width];
-					for (int x = 0; x < gmr.width; x++)
-					{
-						*dest = *elevation;
-
-						elevation += stepX;
-						dest++;
-					}
+					result = HGMRR_InternalError;
+					break;
 				}
 			}
 
-			return HGMRR_OK;
+			// TODO: render tiles to img
+
+			// release allocated memory
+			for (int ay = 0; ay < numAsterTilesY; ay++)
+			{
+				for (int ax = 0; ax < numAsterTilesX; ax++)
+				{
+					ASTERTileContent& tileContent = asterTileContent[ay * MaxNumAsterTilesX + ax];
+
+					UnloadASTERTileContent(tileContent);
+				}
+			}
+
+			return result;
 		}
 
 		bool TransformBBox(
-			const WebMapService::GetMapRequest::BBox& srcBBox, WebMapService::GetMapRequest::BBox& dstBBox, 
+			const BBox& srcBBox, BBox& dstBBox, 
 			const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const
 		{
 			bool success = true;
@@ -409,11 +430,12 @@ namespace Layers
 			}
 			else
 			{
-				memcpy(&dstBBox, &srcBBox, sizeof(WebMapService::GetMapRequest::BBox));
+				memcpy(&dstBBox, &srcBBox, sizeof(BBox));
 			}
 			return success;
 		}
 
+		// TODO: this should go into utils or base layer
 		OGRCoordinateTransformation* GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const
 		{
 			SrcDestTransfromId transId;
@@ -437,12 +459,13 @@ namespace Layers
 		}
 
 
-		void GetASTERTiles(vector<ASTERTile*>& asterTilesTouched, const WebMapService::GetMapRequest::BBox& asterBBox)
+		void GetASTERTiles(vector<ASTERTile*>& asterTilesTouched, const BBox& asterBBox, int& startX, int& startY, int& numTilesX, int& numTilesY)
 		{
-			int startX = Clamp((int)floor(asterBBox.minX), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude;
-			int startY = Clamp((int)floor(asterBBox.minY), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude;
-			int endX = Clamp((int)floor(asterBBox.maxX - 0.000001), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude; // we fudge the max values because each 
-			int endY = Clamp((int)floor(asterBBox.maxY - 0.000001), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
+			// TODO: support wrapping around date border
+			startX = Clamp((int)floor(asterBBox.minX), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude;
+			startY = Clamp((int)floor(asterBBox.minY), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude;
+			const int endX = Clamp((int)floor(asterBBox.maxX - 0.000001), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude; // we fudge the max values because each 
+			const int endY = Clamp((int)floor(asterBBox.maxY - 0.000001), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
 
 			for (int y = startY; y <= endY; y++)
 			{
@@ -458,6 +481,9 @@ namespace Layers
 					asterTile++;
 				}
 			}
+
+			numTilesX = endX - startX + 1;
+			numTilesY = endY - startY + 1;
 		}
 	};
 

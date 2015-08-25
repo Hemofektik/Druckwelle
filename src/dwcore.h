@@ -65,6 +65,17 @@ namespace dw
 		sizeof(u32),
 	};
 
+	struct BBox
+	{
+		double minX;
+		double minY;
+		double maxX;
+		double maxY;
+
+		double GetWidth() const { return maxX - minX; }
+		double GetHeight() const { return maxY - minY; }
+	};
+
 	ContentType GetContentType(const astring& contentTypeId);
 	DataType FindCompatibleDataType(ContentType contentType, const std::vector<DataType>& availableDataTypes);
 }

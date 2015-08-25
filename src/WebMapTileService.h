@@ -41,7 +41,7 @@ namespace dw
 			virtual int GetTileHeight() const = 0;
 			virtual const std::vector<DataType>& GetSuppordetFormats() const = 0;
 
-			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gtr, u8* data) = 0;
+			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gtr, class Image& img) = 0;
 		};
 
 		typedef Layer* (*CreateLayer)();

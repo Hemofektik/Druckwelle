@@ -14,13 +14,6 @@ namespace dw
 
 		struct GetMapRequest
 		{
-			struct BBox
-			{
-				double minX;
-				double minY;
-				double maxX;
-				double maxY;
-			};
 			astring styles;
 			astring crs;
 			BBox bbox;
@@ -56,7 +49,7 @@ namespace dw
 			virtual const int GetMaxHeight() const { return 0; };
 			virtual const std::vector<DataType>& GetSuppordetFormats() const = 0;
 
-			virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) = 0;
+			virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, class Image& img) = 0;
 		};
 
 		typedef Layer* (*CreateLayer)();

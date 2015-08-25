@@ -23,5 +23,9 @@ namespace dw
 		~Image();
 	};
 
-	bool ConvertRawImageToContentType(Image& image, ContentType contentType);
+	namespace utils
+	{
+		bool ConvertRawImageToContentType(Image& image, ContentType contentType);
+		void ExtendBoundingBoxForLanczos(BBox& asterBBox, double srcDegreesPerPixelX, double srcDegreesPerPixelY, double dstDegreesPerPixelX, double dstDegreesPerPixelY);
+	}
 }

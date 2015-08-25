@@ -1,5 +1,6 @@
 
 #include "../WebMapService.h"
+#include "../utils/ImageProcessor.h"
 
 using namespace std;
 
@@ -49,12 +50,12 @@ namespace Layers
 			return HGMRR_OK;
 		}
 
-		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, u8* data) override
+		virtual HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, Image& img) override
 		{
 			switch (gmr.dataType)
 			{
 			case DT_RGBA8:
-				return HandleGetMapRequest<u32>(gmr, (u32*)data, 0xFF0000FF);
+				return HandleGetMapRequest<u32>(gmr, (u32*)img.rawData, 0xFF0000FF);
 			default:
 				return HGMRR_InvalidFormat;
 			}
