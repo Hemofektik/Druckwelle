@@ -17,6 +17,13 @@ endforeach()
 
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 
+if(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp")
+	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /openmp")
+endif()
+
 include_directories(
 	${CMAKE_SOURCE_DIR}/inc
 )
