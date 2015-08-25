@@ -1,5 +1,6 @@
 #pragma once
 #include "../dwcore.h"
+#include <functional>
 
 namespace dw
 {
@@ -21,6 +22,13 @@ namespace dw
 
 		Image(int width, int height, DataType dataType);
 		~Image();
+
+		bool SaveToPNG(const astring& filename);
+
+		// srcType must be of same size as the DataType given in the ctor of this image
+		// dstType must be either one or four bytes wide (greyscale or rgba)
+		template <typename srcType, typename dstType>
+		bool SaveToPNG(const astring& filename, std::function<dstType(srcType)> convert);
 	};
 
 	namespace utils

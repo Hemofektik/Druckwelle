@@ -2,6 +2,7 @@
 #include "ImageProcessor.h"
 
 #include <algorithm>
+#include <fstream>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
@@ -47,6 +48,50 @@ namespace dw
 		delete[] rawData;
 	}
 
+	bool Image::SaveToPNG(const astring& filename)
+	{
+		assert(rawDataType == DT_U8 || rawDataType == DT_RGBA8);
+		if (utils::ConvertRawImageToContentType(*this, CT_Image_PNG))
+		{
+			ofstream file(filename, ios::out | ios::binary);
+			if (file.is_open())
+			{
+				file.write((char*)processedData, processedDataSize);
+			}
+			file.close();
+
+			return true;
+		}
+		return false;
+	}
+
+	template <typename srcType, typename dstType>
+	static bool SaveToPNG(const astring& filename, std::function<dstType(srcType)> convert, Image& img)
+	{
+		assert(sizeof(srcType) == img.rawPixelSize);
+		assert(sizeof(dstType) == 4 || sizeof(dstType) == 1);
+		Image tmpImg(img.width, img.height, (sizeof(dstType) == 4) ? DT_RGBA8 : DT_U8);
+		dstType* dstEnd = ((dstType*)tmpImg.rawData) + tmpImg.width * tmpImg.height;
+		dstType* dst = tmpImg.rawData;
+		srcType* src = (srcType*)img.rawData;
+		while (dst < dstEnd)
+		{
+			dstType newValue = convert(*src);
+
+			*dst = newValue;
+
+			src++;
+			dst++;
+		}
+
+		return tmpImg.SaveToPNG(filename);
+	}
+
+	// specialize any combinations you want to support here
+	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(s16)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+
 	namespace utils
 	{
 		bool ConvertRawImageToContentType(Image& image, ContentType contentType)
@@ -70,13 +115,17 @@ namespace dw
 				return image.processedData != NULL;
 			}
 
-			// handle all raw formats in the same way (processed data points to raw data)
+			// handle all raw formats in the same way (processed data ptr points to raw data, which avoids data duplication)
 			case CT_Image_Raw_S16:
 				if (contentType == CT_Image_Raw_S16 && image.rawDataType != DT_S16) return false;
 			case CT_Image_Raw_U8:
 				if (contentType == CT_Image_Raw_U8 && image.rawDataType != DT_U8) return false;
 			case CT_Image_Raw_U32:
 				if (contentType == CT_Image_Raw_U32 && image.rawDataType != DT_RGBA8 && image.rawDataType != DT_U32) return false;
+			case CT_Image_Raw_F32:
+				if (contentType == CT_Image_Raw_F32 && image.rawDataType != DT_F32) return false;
+			case CT_Image_Raw_F64:
+				if (contentType == CT_Image_Raw_F64 && image.rawDataType != DT_F64) return false;
 
 				image.processedData = image.rawData;
 				image.processedDataSize = image.rawDataSize;

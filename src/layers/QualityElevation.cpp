@@ -3,7 +3,6 @@
 #include <mutex>
 #include <iostream>
 #include <memory>
-#include <fstream>
 
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
@@ -418,32 +417,9 @@ namespace Layers
 
 			// TODO: render loaded elevation to img
 
-			// debug output of loaded region of ASTER tiles
-			if(false) // TODO: move this (together with #include <fstream>) to image utils with template param and functor etc.
+			if(false) // debug output of loaded region of ASTER tiles
 			{
-				Image u8Img(numPixelsX, numPixelsY, DT_U8);
-				u8* dstGreyScaleEnd = u8Img.rawData + u8Img.width * u8Img.height;
-				u8* dstGreyScale = u8Img.rawData;
-				s16* e = (s16*)elevation.rawData;
-				while (dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
-				{
-					u8 elevationAsGrayScale = (u8)Clamp<s32>(*e / 32, 0, 255);
-
-					*dstGreyScale = elevationAsGrayScale;
-
-					e++;
-					dstGreyScale++;
-				}
-
-				if (utils::ConvertRawImageToContentType(u8Img, CT_Image_PNG))
-				{
-					ofstream file("patchedAster.png", ios::out | ios::binary);
-					if (file.is_open())
-					{
-						file.write((char*)u8Img.processedData, u8Img.processedDataSize);
-					}
-					file.close();
-				}
+				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 elevation) { return (u8)Clamp<s32>(elevation / 32, 0, 255); });
 			}
 
 			return result;

@@ -32,6 +32,8 @@ namespace dw
 		CT_Image_Raw_S16,
 		CT_Image_Raw_U8,
 		CT_Image_Raw_U32,
+		CT_Image_Raw_F32,
+		CT_Image_Raw_F64,
 
 		CT_NumContentTypes // must be last entry
 	};
@@ -43,6 +45,8 @@ namespace dw
 		"application/raw-s16",
 		"application/raw-u8",
 		"application/raw-u32",
+		"application/raw-f32",
+		"application/raw-f64",
 	};
 
 	enum DataType
@@ -52,6 +56,8 @@ namespace dw
 		DT_U8,
 		DT_S16,
 		DT_U32,
+		DT_F32,
+		DT_F64,
 
 		DT_NumDataTypes // must be last entry
 	};
@@ -63,6 +69,8 @@ namespace dw
 		sizeof(u8),
 		sizeof(s16),
 		sizeof(u32),
+		sizeof(f32),
+		sizeof(f64),
 	};
 
 	struct BBox
