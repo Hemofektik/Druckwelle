@@ -3,6 +3,7 @@
 #include <mutex>
 #include <iostream>
 #include <memory>
+#include <fstream>
 
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
@@ -64,6 +65,7 @@ namespace Layers
 
 			int width;
 			int height;
+			int pitchInPixels;
 
 			double geoTransform[6];
 		};
@@ -79,8 +81,8 @@ namespace Layers
 		const int AsterTileEndLongitude = 179;
 		const int NumASTERTilesX = AsterTileEndLongitude - AsterTileStartLongitude + 1;
 		const int MissingTileCoordinate = -1000;
-		const double AsterPixelsPerDegree = 3600.0;
-		const double AsterDegreesPerPixel = 1.0 / AsterPixelsPerDegree;
+		const int AsterPixelsPerDegree = 3600;
+		const double AsterDegreesPerPixel = 1.0 / (double)AsterPixelsPerDegree;
 
 	public:
 
@@ -310,7 +312,15 @@ namespace Layers
 			content.width = demRasterBand->GetXSize();
 			content.height = demRasterBand->GetYSize();
 
-			content.elevation = new s16[content.width * content.height];
+			if (content.elevation)
+			{
+				assert(content.pitchInPixels > 0);
+			}
+			else
+			{
+				content.pitchInPixels = content.width;
+				content.elevation = new s16[content.width * content.height];
+			}
 			//content.quality = new s16[content.width * content.height];
 
 			int blockSizeX, blockSizeY;
@@ -319,7 +329,7 @@ namespace Layers
 
 			for (int y = 0; y < content.height; y++)
 			{
-				if (demRasterBand->ReadBlock(0, y, &content.elevation[y * content.width]) != CE_None)
+				if (demRasterBand->ReadBlock(0, y, &content.elevation[y * content.pitchInPixels]) != CE_None)
 				{
 					goto err;
 				}
@@ -374,38 +384,65 @@ namespace Layers
 				return HGMRR_InvalidBBox;
 			}
 
-			ASTERTileContent asterTileContent[MaxNumAsterTilesX * MaxNumAsterTilesY];
-			memset(asterTileContent, 0, MaxNumAsterTilesX * MaxNumAsterTilesY * sizeof(ASTERTileContent));
+			const int numPixelsX = numAsterTilesX * AsterPixelsPerDegree + 1;
+			const int numPixelsY = numAsterTilesY * AsterPixelsPerDegree + 1;
+			
+			Image elevation(numPixelsX, numPixelsY, DT_S16);
 
 			const s16 InvalidValueASTER = -9999;
+			static_assert(sizeof(wchar_t) == sizeof(s16), "Need explicit two byte memset");
+			wmemset((wchar_t*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
 
 			HandleGetMapRequestResult result = HGMRR_OK;
 			const int numTiles = (int)asterTilesTouched.size();
 			#pragma omp parallel for
 			for (int t = 0; t < numTiles; t++)
 			{
+				ASTERTileContent asterTileContent;
+				asterTileContent.pitchInPixels = numPixelsX;
+
 				const auto& tile = asterTilesTouched[t];
 
 				int x = tile->longitude - asterStartX - AsterTileStartLongitude;
 				int y = tile->latitude - asterStartY - asterTileStartLatitude;
 
-				if (!LoadASTERTileContent(tile, asterTileContent[(numAsterTilesY - y - 1) * MaxNumAsterTilesX + x]))
+				int pixelOffset = ((numAsterTilesY - y - 1) * numPixelsX + x) * AsterPixelsPerDegree * sizeof(s16);
+				asterTileContent.elevation = (s16*)&elevation.rawData[pixelOffset];
+
+				if (!LoadASTERTileContent(tile, asterTileContent))
 				{
 					result = HGMRR_InternalError;
 					break;
 				}
 			}
 
-			// TODO: render tiles to img
+			// TODO: render loaded elevation to img
 
-			// release allocated memory
-			for (int ay = 0; ay < numAsterTilesY; ay++)
+			// debug output of loaded region of ASTER tiles
+			if(false) // TODO: move this (together with #include <fstream>) to image utils with template param and functor etc.
 			{
-				for (int ax = 0; ax < numAsterTilesX; ax++)
+				Image u8Img(numPixelsX, numPixelsY, DT_U8);
+				u8* dstGreyScaleEnd = u8Img.rawData + u8Img.width * u8Img.height;
+				u8* dstGreyScale = u8Img.rawData;
+				s16* e = (s16*)elevation.rawData;
+				while (dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
 				{
-					ASTERTileContent& tileContent = asterTileContent[ay * MaxNumAsterTilesX + ax];
+					u8 elevationAsGrayScale = (u8)Clamp<s32>(*e / 32, 0, 255);
 
-					UnloadASTERTileContent(tileContent);
+					*dstGreyScale = elevationAsGrayScale;
+
+					e++;
+					dstGreyScale++;
+				}
+
+				if (utils::ConvertRawImageToContentType(u8Img, CT_Image_PNG))
+				{
+					ofstream file("patchedAster.png", ios::out | ios::binary);
+					if (file.is_open())
+					{
+						file.write((char*)u8Img.processedData, u8Img.processedDataSize);
+					}
+					file.close();
 				}
 			}
 
