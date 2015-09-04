@@ -367,9 +367,9 @@ namespace Layers
 			}
 
 			BBox extendedAsterBBox(asterBBox);
-			const double DegreesPerPixelX = asterBBox.GetWidth() / img.width;
-			const double DegreesPerPixelY = asterBBox.GetHeight() / img.height;
-			utils::ExtendBoundingBoxForLanczos(extendedAsterBBox, AsterDegreesPerPixel, AsterDegreesPerPixel, DegreesPerPixelX, DegreesPerPixelY);
+			const double RequestedDegreesPerPixelX = asterBBox.GetWidth() / img.width;
+			const double RequestedDegreesPerPixelY = asterBBox.GetHeight() / img.height;
+			utils::ExtendBoundingBoxForLanczos(extendedAsterBBox, AsterDegreesPerPixel, AsterDegreesPerPixel, RequestedDegreesPerPixelX, RequestedDegreesPerPixelY);
 
 			const int MaxNumAsterTilesX = 4;
 			const int MaxNumAsterTilesY = 4;
@@ -415,12 +415,22 @@ namespace Layers
 					break;
 				}
 			}
+			if (result != HGMRR_OK)
+			{
+				return result;
+			}
+
+			BBox loadedBBox;
+			loadedBBox.minX = asterStartX + AsterTileStartLongitude;
+			loadedBBox.minY = asterStartY + asterTileStartLatitude;
+			loadedBBox.maxX = loadedBBox.minX + numAsterTilesX;
+			loadedBBox.maxY = loadedBBox.minY + numAsterTilesY;
 
 			// TODO: render loaded elevation to img
 
 			if(false) // debug output of loaded region of ASTER tiles
 			{
-				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 elevation) { return (u8)Clamp<s32>(elevation / 32, 0, 255); });
+				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 32, 0, 255); });
 			}
 
 			return result;
