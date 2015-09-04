@@ -366,9 +366,10 @@ namespace Layers
 				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 			}
 
+			BBox extendedAsterBBox(asterBBox);
 			const double DegreesPerPixelX = asterBBox.GetWidth() / img.width;
 			const double DegreesPerPixelY = asterBBox.GetHeight() / img.height;
-			utils::ExtendBoundingBoxForLanczos(asterBBox, AsterDegreesPerPixel, AsterDegreesPerPixel, DegreesPerPixelX, DegreesPerPixelY);
+			utils::ExtendBoundingBoxForLanczos(extendedAsterBBox, AsterDegreesPerPixel, AsterDegreesPerPixel, DegreesPerPixelX, DegreesPerPixelY);
 
 			const int MaxNumAsterTilesX = 4;
 			const int MaxNumAsterTilesY = 4;
@@ -376,7 +377,7 @@ namespace Layers
 			vector<ASTERTile*> asterTilesTouched; 
 			asterTilesTouched.reserve(MaxNumAsterTilesX * MaxNumAsterTilesY);
 			int asterStartX, asterStartY, numAsterTilesX, numAsterTilesY;
-			GetASTERTiles(asterTilesTouched, asterBBox, asterStartX, asterStartY, numAsterTilesX, numAsterTilesY);
+			GetASTERTiles(asterTilesTouched, extendedAsterBBox, asterStartX, asterStartY, numAsterTilesX, numAsterTilesY);
 
 			if (numAsterTilesX > MaxNumAsterTilesX || numAsterTilesY > MaxNumAsterTilesY) // prevent requests which would take too much resources
 			{
@@ -474,29 +475,31 @@ namespace Layers
 
 		void GetASTERTiles(vector<ASTERTile*>& asterTilesTouched, const BBox& asterBBox, int& startX, int& startY, int& numTilesX, int& numTilesY)
 		{
-			// TODO: support wrapping around date border
-			startX = Clamp((int)floor(asterBBox.minX), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude;
-			startY = Clamp((int)floor(asterBBox.minY), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude;
-			const int endX = Clamp((int)floor(asterBBox.maxX - 0.000001), AsterTileStartLongitude, AsterTileEndLongitude) - AsterTileStartLongitude; // we fudge the max values because each 
-			const int endY = Clamp((int)floor(asterBBox.maxY - 0.000001), asterTileStartLatitude, asterTileEndLatitude) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
+			startX = (int)floor(asterBBox.minX) - AsterTileStartLongitude;
+			startY = (int)floor(asterBBox.minY) - asterTileStartLatitude;
+			int endX = (int)floor(asterBBox.maxX - 0.000001) - AsterTileStartLongitude; // we fudge the max values because each 
+			int endY = (int)floor(asterBBox.maxY - 0.000001) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
 
-			for (int y = startY; y <= endY; y++)
+			numTilesX = endX - startX + 1;
+			numTilesY = endY - startY + 1;
+
+			int clampedStartY = max(startY, 0);
+			endY = min(endY, asterTileEndLatitude - asterTileStartLatitude + 1);
+
+			for (int y = clampedStartY; y <= endY; y++)
 			{
 				int vIndex = y * NumASTERTilesX;
-				ASTERTile* asterTile = &asterTiles[vIndex + startX];
 				for (int x = startX; x <= endX; x++)
 				{
+					ASTERTile* asterTile = &asterTiles[vIndex + ((x + 360) % 360)]; // wrap around date border
+
 					if (asterTile->latitude != MissingTileCoordinate)
 					{
 						asterTilesTouched.push_back(asterTile);
 					}
-
-					asterTile++;
 				}
 			}
 
-			numTilesX = endX - startX + 1;
-			numTilesY = endY - startY + 1;
 		}
 	};
 
