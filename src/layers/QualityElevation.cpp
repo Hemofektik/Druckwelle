@@ -426,7 +426,12 @@ namespace Layers
 			loadedBBox.maxX = loadedBBox.minX + numAsterTilesX;
 			loadedBBox.maxY = loadedBBox.minY + numAsterTilesY;
 
+			// TODO: compute dst to src pixel matrix to get sampling center for each dst pixel into src data
 			// TODO: render loaded elevation to img
+			const double PixelScaleX = RequestedDegreesPerPixelX * AsterPixelsPerDegree;
+			const double PixelScaleY = RequestedDegreesPerPixelY * AsterPixelsPerDegree;
+			const double PixelOffsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
+			const double PixelOffsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
 			if(false) // debug output of loaded region of ASTER tiles
 			{
