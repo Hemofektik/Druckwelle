@@ -231,7 +231,7 @@ namespace dw
 							srcAcc += pixel * l;
 						}
 
-						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
+						dstPixels[y * width + x] = (lanczosAcc == 0.0) ? invalidValue : (T)(srcAcc / lanczosAcc);
 					}
 				}
 			}
@@ -266,7 +266,7 @@ namespace dw
 							srcAcc += pixel * l;
 						}
 
-						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
+						dstPixels[y * width + x] = (lanczosAcc == 0.0) ? invalidValue : (T)(srcAcc / lanczosAcc);
 					}
 				}
 			}
