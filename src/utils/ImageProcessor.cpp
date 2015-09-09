@@ -193,15 +193,75 @@ namespace dw
 			const int height = dst.height;
 			const int srcWidth = src.width;
 
-			T* dstPixels = (T*)dst.rawData;
-			const T* srcPixels = (const T*)src.rawData;
-			for (int y = 0; y < height; y++)
+			const int imgLanczosWindow = (int)ceil(LanczosWindowSize * transform.scaleY);
+			const int tmpImageHeight = (int)ceil(dst.height * transform.scaleY) + imgLanczosWindow * 2;
+
+			const int tmpImageOffsetY = (int)(transform.offsetY - imgLanczosWindow);
+			const double invImgLanczosWindow = LanczosWindowSize / (double)imgLanczosWindow;
+
+			Image horizontalLanczos(dst.width, tmpImageHeight, src.rawDataType);
+
+			// horizontal pass
 			{
-				for (int x = 0; x < width; x++)
+				T* dstPixels = (T*)horizontalLanczos.rawData;
+				const T* srcPixels = (const T*)src.rawData;
+				for (int y = 0; y < tmpImageHeight; y++)
 				{
-					int srcX = (int)round(x * transform.scaleX + transform.offsetX);
-					int srcY = (int)round(y * transform.scaleY + transform.offsetY);
-					dstPixels[y * width + x] = srcPixels[srcY * srcWidth + srcX];
+					for (int x = 0; x < width; x++)
+					{
+						double srcX = x * transform.scaleX + transform.offsetX;
+						
+						const int iSrcX = (int)floor(srcX);
+						const int iSrcY = y + tmpImageOffsetY;
+
+						const double xOffset = iSrcX - srcX;
+
+						const T* srcPixel = &srcPixels[iSrcY * srcWidth + iSrcX];
+
+						double lanczosAcc = 0.0;
+						double srcAcc = 0.0;
+						for (int lx = -imgLanczosWindow; lx <= imgLanczosWindow; lx++)
+						{
+							double l = EvalLanczos(LanczosWindowSize, (lx + xOffset) * invImgLanczosWindow );
+
+							lanczosAcc += l;
+							srcAcc += srcPixel[lx] * l;
+						}
+
+						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
+					}
+				}
+			}
+
+			// vertical pass
+			{
+				T* dstPixels = (T*)dst.rawData;
+				const T* srcPixels = (const T*)horizontalLanczos.rawData;
+				for (int y = 0; y < height; y++)
+				{
+					for (int x = 0; x < width; x++)
+					{
+						double srcY = y * transform.scaleY + imgLanczosWindow;
+
+						const int iSrcX = x;
+						const int iSrcY = (int)floor(srcY);
+
+						const double yOffset = iSrcY - srcY;
+
+						const T* srcPixel = &srcPixels[iSrcY * width + iSrcX];
+
+						double lanczosAcc = 0.0;
+						double srcAcc = 0.0;
+						for (int ly = -imgLanczosWindow; ly <= imgLanczosWindow; ly++)
+						{
+							double l = EvalLanczos(LanczosWindowSize, (ly + yOffset) * invImgLanczosWindow);
+
+							lanczosAcc += l;
+							srcAcc += srcPixel[ly * width] * l;
+						}
+
+						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
+					}
 				}
 			}
 		}
