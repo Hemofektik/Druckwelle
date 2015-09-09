@@ -2,7 +2,9 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
+#include <iomanip>
 #include <memory>
+#include <chrono>
 
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
@@ -21,6 +23,7 @@
 #include "../utils/ImageProcessor.h"
 
 using namespace std;
+using namespace std::chrono;
 using namespace std::experimental::filesystem::v1;
 using namespace ZFXMath;
 
@@ -434,8 +437,14 @@ namespace Layers
 			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
 			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
+			high_resolution_clock::time_point t1 = high_resolution_clock::now();
+
 			InvalidValue iv(InvalidValueASTER);
 			SampleWithLanczos(elevation, img, st, &iv);
+
+			high_resolution_clock::time_point t2 = high_resolution_clock::now();
+			duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
+			std::cout << "SampleWithLanczos was processed within " << std::setprecision(5) << time_span.count() << " ms" << endl;
 
 			if(false) // debug output of loaded region of ASTER tiles
 			{
