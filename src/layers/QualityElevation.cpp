@@ -423,10 +423,10 @@ namespace Layers
 			}
 
 			BBox loadedBBox;
-			loadedBBox.minX = asterStartX + AsterTileStartLongitude;
-			loadedBBox.minY = asterStartY + asterTileStartLatitude;
-			loadedBBox.maxX = loadedBBox.minX + numAsterTilesX;
-			loadedBBox.maxY = loadedBBox.minY + numAsterTilesY;
+			loadedBBox.minX = asterStartX + AsterTileStartLongitude - AsterDegreesPerPixel * 0.5;
+			loadedBBox.minY = asterStartY + asterTileStartLatitude - AsterDegreesPerPixel * 0.5;
+			loadedBBox.maxX = loadedBBox.minX + numAsterTilesX + AsterDegreesPerPixel;
+			loadedBBox.maxY = loadedBBox.minY + numAsterTilesY + AsterDegreesPerPixel;
 
 			SampleTransform st;
 			st.scaleX = RequestedDegreesPerPixelX * AsterPixelsPerDegree;
@@ -434,7 +434,7 @@ namespace Layers
 			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
 			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
-			Sample(elevation, img, st);
+			SampleWithLanczos(elevation, img, st);
 
 			if(true) // debug output of loaded region of ASTER tiles
 			{

@@ -44,6 +44,6 @@ namespace dw
 			double offsetY;
 		};
 
-		void Sample(const Image& src, Image& dst, const SampleTransform& transform);
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform);
 	}
 }

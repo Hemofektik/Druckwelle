@@ -187,7 +187,7 @@ namespace dw
 		}
 
 		template<typename T>
-		void Sample(const Image& src, Image& dst, const SampleTransform& transform)
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform)
 		{
 			const int width = dst.width;
 			const int height = dst.height;
@@ -206,7 +206,7 @@ namespace dw
 			}
 		}
 
-		void Sample(const Image& src, Image& dst, const SampleTransform& transform)
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform)
 		{
 			assert(src.rawDataType == dst.rawDataType);
 			assert(transform.offsetX - LanczosWindowSize * transform.scaleX >= 0);
@@ -217,15 +217,15 @@ namespace dw
 			switch (src.rawDataType)
 			{
 			case DT_U8:
-				return Sample<u8>(src, dst, transform);
+				return SampleWithLanczos<u8>(src, dst, transform);
 			case DT_S16:
-				return Sample<s16>(src, dst, transform);
+				return SampleWithLanczos<s16>(src, dst, transform);
 			case DT_U32:
-				return Sample<u32>(src, dst, transform);
+				return SampleWithLanczos<u32>(src, dst, transform);
 			case DT_F32:
-				return Sample<f32>(src, dst, transform);
+				return SampleWithLanczos<f32>(src, dst, transform);
 			case DT_F64:
-				return Sample<f64>(src, dst, transform);
+				return SampleWithLanczos<f64>(src, dst, transform);
 			default:
 				assert(false); // requested datatype not implemented yet, sorry
 				break;
