@@ -187,7 +187,7 @@ namespace dw
 		}
 
 		template<typename T>
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform)
+		static void SampleWithLanczosInternal(const Image& src, Image& dst, const SampleTransform& transform, const T invalidValue)
 		{
 			const int width = dst.width;
 			const int height = dst.height;
@@ -220,12 +220,15 @@ namespace dw
 
 						double lanczosAcc = 0.0;
 						double srcAcc = 0.0;
-						for (int lx = -imgLanczosWindow; lx <= imgLanczosWindow; lx++)
+						for (int lx = -imgLanczosWindow + 1; lx < imgLanczosWindow; lx++)
 						{
+							T pixel = srcPixel[lx];
+							if (pixel == invalidValue) continue;
+
 							double l = EvalLanczos(LanczosWindowSize, (lx + xOffset) * invImgLanczosWindow );
 
 							lanczosAcc += l;
-							srcAcc += srcPixel[lx] * l;
+							srcAcc += pixel * l;
 						}
 
 						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
@@ -254,10 +257,13 @@ namespace dw
 						double srcAcc = 0.0;
 						for (int ly = -imgLanczosWindow; ly <= imgLanczosWindow; ly++)
 						{
+							T pixel = srcPixel[ly * width];
+							if (pixel == invalidValue) continue;
+
 							double l = EvalLanczos(LanczosWindowSize, (ly + yOffset) * invImgLanczosWindow);
 
 							lanczosAcc += l;
-							srcAcc += srcPixel[ly * width] * l;
+							srcAcc += pixel * l;
 						}
 
 						dstPixels[y * width + x] = (T)(srcAcc / lanczosAcc);
@@ -266,7 +272,7 @@ namespace dw
 			}
 		}
 
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform)
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue)
 		{
 			assert(src.rawDataType == dst.rawDataType);
 			assert(transform.offsetX - LanczosWindowSize * transform.scaleX >= 0);
@@ -277,15 +283,15 @@ namespace dw
 			switch (src.rawDataType)
 			{
 			case DT_U8:
-				return SampleWithLanczos<u8>(src, dst, transform);
+				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue ? invalidValue->value.u8[0] : 0);
 			case DT_S16:
-				return SampleWithLanczos<s16>(src, dst, transform);
+				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
 			case DT_U32:
-				return SampleWithLanczos<u32>(src, dst, transform);
+				return SampleWithLanczosInternal<u32>(src, dst, transform, invalidValue ? invalidValue->value.u32[0] : 0);
 			case DT_F32:
-				return SampleWithLanczos<f32>(src, dst, transform);
+				return SampleWithLanczosInternal<f32>(src, dst, transform, invalidValue ? invalidValue->value.f32[0] : 0);
 			case DT_F64:
-				return SampleWithLanczos<f64>(src, dst, transform);
+				return SampleWithLanczosInternal<f64>(src, dst, transform, invalidValue ? invalidValue->value.f64 : 0);
 			default:
 				assert(false); // requested datatype not implemented yet, sorry
 				break;

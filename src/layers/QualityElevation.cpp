@@ -434,9 +434,10 @@ namespace Layers
 			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
 			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
-			SampleWithLanczos(elevation, img, st);
+			InvalidValue iv(InvalidValueASTER);
+			SampleWithLanczos(elevation, img, st, &iv);
 
-			if(true) // debug output of loaded region of ASTER tiles
+			if(false) // debug output of loaded region of ASTER tiles
 			{
 				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 6, 0, 255); });
 				img.SaveToPNG<s16, u8>("sampledAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 6, 0, 255); });

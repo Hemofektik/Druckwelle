@@ -44,6 +44,40 @@ namespace dw
 			double offsetY;
 		};
 
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform);
+		struct InvalidValue
+		{
+			union 
+			{
+				u8		u8[8];
+				u16		u16[4];
+				s16		s16[4];
+				u32		u32[2];
+				float	f32[2];
+				double	f64;
+			} value;
+
+			InvalidValue(u8 invalidValue)
+			{
+				value.u8[0] = invalidValue;
+			}
+			InvalidValue(u16 invalidValue)
+			{
+				value.u16[0] = invalidValue;
+			}
+			InvalidValue(s16 invalidValue)
+			{
+				value.s16[0] = invalidValue;
+			}
+			InvalidValue(u32 invalidValue)
+			{
+				value.u32[0] = invalidValue;
+			}
+			InvalidValue(f64 invalidValue)
+			{
+				value.f64 = invalidValue;
+			}
+		};
+
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue = NULL);
 	}
 }
