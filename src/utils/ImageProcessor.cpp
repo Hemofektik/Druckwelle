@@ -185,5 +185,51 @@ namespace dw
 
 			return sincx * sincxUnit;
 		}
+
+		template<typename T>
+		void Sample(const Image& src, Image& dst, const SampleTransform& transform)
+		{
+			const int width = dst.width;
+			const int height = dst.height;
+			const int srcWidth = src.width;
+
+			T* dstPixels = (T*)dst.rawData;
+			const T* srcPixels = (const T*)src.rawData;
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					int srcX = (int)round(x * transform.scaleX + transform.offsetX);
+					int srcY = (int)round(y * transform.scaleY + transform.offsetY);
+					dstPixels[y * width + x] = srcPixels[srcY * srcWidth + srcX];
+				}
+			}
+		}
+
+		void Sample(const Image& src, Image& dst, const SampleTransform& transform)
+		{
+			assert(src.rawDataType == dst.rawDataType);
+			assert(transform.offsetX - LanczosWindowSize * transform.scaleX >= 0);
+			assert(transform.offsetY - LanczosWindowSize * transform.scaleY >= 0);
+			assert((dst.width - 1 + LanczosWindowSize) * transform.scaleX + transform.offsetX < src.width);
+			assert((dst.height - 1 + LanczosWindowSize) * transform.scaleY + transform.offsetY < src.height);
+
+			switch (src.rawDataType)
+			{
+			case DT_U8:
+				return Sample<u8>(src, dst, transform);
+			case DT_S16:
+				return Sample<s16>(src, dst, transform);
+			case DT_U32:
+				return Sample<u32>(src, dst, transform);
+			case DT_F32:
+				return Sample<f32>(src, dst, transform);
+			case DT_F64:
+				return Sample<f64>(src, dst, transform);
+			default:
+				assert(false); // requested datatype not implemented yet, sorry
+				break;
+			}
+		}
 	}
 }

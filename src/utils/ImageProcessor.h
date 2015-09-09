@@ -35,5 +35,15 @@ namespace dw
 	{
 		bool ConvertRawImageToContentType(Image& image, ContentType contentType);
 		void ExtendBoundingBoxForLanczos(BBox& asterBBox, double srcDegreesPerPixelX, double srcDegreesPerPixelY, double dstDegreesPerPixelX, double dstDegreesPerPixelY);
+
+		struct SampleTransform
+		{
+			double scaleX;
+			double scaleY;
+			double offsetX;
+			double offsetY;
+		};
+
+		void Sample(const Image& src, Image& dst, const SampleTransform& transform);
 	}
 }

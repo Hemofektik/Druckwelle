@@ -22,8 +22,10 @@
 
 using namespace std;
 using namespace std::experimental::filesystem::v1;
-using namespace dw;
 using namespace ZFXMath;
+
+using namespace dw;
+using namespace dw::utils;
 
 namespace dw
 {
@@ -426,16 +428,18 @@ namespace Layers
 			loadedBBox.maxX = loadedBBox.minX + numAsterTilesX;
 			loadedBBox.maxY = loadedBBox.minY + numAsterTilesY;
 
-			// TODO: compute dst to src pixel matrix to get sampling center for each dst pixel into src data
-			// TODO: render loaded elevation to img
-			const double PixelScaleX = RequestedDegreesPerPixelX * AsterPixelsPerDegree;
-			const double PixelScaleY = RequestedDegreesPerPixelY * AsterPixelsPerDegree;
-			const double PixelOffsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
-			const double PixelOffsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
+			SampleTransform st;
+			st.scaleX = RequestedDegreesPerPixelX * AsterPixelsPerDegree;
+			st.scaleY = RequestedDegreesPerPixelY * AsterPixelsPerDegree;
+			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
+			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
-			if(false) // debug output of loaded region of ASTER tiles
+			Sample(elevation, img, st);
+
+			if(true) // debug output of loaded region of ASTER tiles
 			{
-				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 32, 0, 255); });
+				elevation.SaveToPNG<s16, u8>("stitchedAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 6, 0, 255); });
+				img.SaveToPNG<s16, u8>("sampledAster.png", [](s16 e) { return (u8)Clamp<s32>(e / 6, 0, 255); });
 			}
 
 			return result;
