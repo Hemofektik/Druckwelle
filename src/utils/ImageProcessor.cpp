@@ -1,6 +1,14 @@
 
 #define ALLOW_AMP 1
 
+#if ALLOW_AMP
+#include <amp.h>
+#include <amp_graphics.h>
+#include <amp_math.h>
+using namespace Concurrency;
+using namespace Concurrency::graphics;
+#endif
+
 #include "ImageProcessor.h"
 
 #include <algorithm>
@@ -11,12 +19,10 @@
 
 #include <ZFXMath.h>
 
+
+
 using namespace std;
 
-#if ALLOW_AMP
-#include <amp.h>
-using namespace Concurrency;
-#endif
 
 namespace dw
 {
@@ -282,16 +288,129 @@ namespace dw
 			}
 		}
 
-		/*array_view<float, 2> dstPixelsArray(horizontalLanczos.height, horizontalLanczos.width, (float*)horizontalLanczos.rawData);
-		array_view<T, 2> average(src.height, src.width, (T*)src.rawData);
-
-		parallel_for_each(
-		dstPixelsArray.extent,
-		[=](index<2> idx) restrict(amp)
+		static float EvalLanczosAMP(int filter_size, float x) restrict(amp)
 		{
+			float floatFilterSize = (float)filter_size;
+			if (x <= -floatFilterSize || x >= floatFilterSize)
+			{
+				return 0.0f;  // Outside of the window.
+			}
 
+			if (x > -0.0001 &&
+				x <  0.0001)
+			{
+				return 1.0f;  // Special case the discontinuity at the origin.
+			}
+
+			float xpi = x * 3.1415927f;
+			float xUnit = xpi / floatFilterSize;
+
+			float sincx = fast_math::sinf(xpi) / xpi;
+			float sincxUnit = fast_math::sinf(xUnit) / (xUnit);
+
+			return sincx * sincxUnit;
 		}
-		);*/
+
+		static void SampleWithLanczosInternalAMP(const Image& src, Image& dst, const SampleTransform& transform, const s16 invalidValue)
+		{
+			const int width = dst.width;
+			const int height = dst.height;
+			const int srcWidth = src.width;
+
+			const int imgLanczosWindowX = max(LanczosWindowSize, (int)ceil(LanczosWindowSize * transform.scaleX));
+			const int imgLanczosWindowY = max(LanczosWindowSize, (int)ceil(LanczosWindowSize * transform.scaleY));
+			const int tmpImageHeight = (int)ceil(dst.height * transform.scaleY) + imgLanczosWindowY * 2;
+
+			const int tmpImageOffsetY = (int)(transform.offsetY - imgLanczosWindowY);
+			const float invImgLanczosWindowX = LanczosWindowSize / (float)imgLanczosWindowX;
+			const float invImgLanczosWindowY = LanczosWindowSize / (float)imgLanczosWindowY;
+
+			const float inf = numeric_limits<float>::infinity();
+			Image horizontalLanczos(dst.width, tmpImageHeight, DT_F32);
+
+			float scaleX = (float)transform.scaleX;
+			float offsetX = (float)transform.offsetX;
+
+			// horizontal pass
+			{
+				array_view<float, 2> horizontalLanczosArray(horizontalLanczos.height, horizontalLanczos.width, (float*)horizontalLanczos.rawData);
+				texture<int, 2> srcPixelsTexture(src.height, src.width, (void*)src.rawData, (uint)src.rawDataSize, 16U);
+				texture_view<const int, 2> srcPixelsTextureViewReadOnly(srcPixelsTexture);
+				const int InvalidValieAMP = invalidValue;
+
+				horizontalLanczosArray.discard_data();
+
+				parallel_for_each(
+					horizontalLanczosArray.extent,
+					[=, &srcPixelsTexture](index<2> idx) restrict(amp)
+					{
+						int x = idx[1];
+						int y = idx[0];
+
+						float srcX = x * scaleX + offsetX;
+
+						const int iSrcX = (int)fast_math::floorf(srcX);
+						const int iSrcY = y + tmpImageOffsetY;
+
+						const float xOffset = iSrcX - srcX;
+
+						float lanczosAcc = 0.0;
+						float srcAcc = 0.0;
+						for (int lx = -imgLanczosWindowX + 1; lx < imgLanczosWindowX; lx++)
+						{
+							index<2> srcIdx(iSrcY, iSrcX + lx);
+							int pixel = srcPixelsTextureViewReadOnly[srcIdx];
+							if (pixel == InvalidValieAMP) continue;
+
+							float l = EvalLanczosAMP(LanczosWindowSize, (lx + xOffset) * invImgLanczosWindowX);
+
+							lanczosAcc += l;
+							srcAcc += pixel * l;
+						}
+
+						float result = (lanczosAcc == 0.0) ? inf : (srcAcc / lanczosAcc);
+						horizontalLanczosArray[idx] = result;
+					}
+				);
+
+				horizontalLanczosArray.synchronize();
+			}
+
+			// vertical pass
+			{
+				s16* dstPixels = (s16*)dst.rawData;
+				const float* srcPixels = (const float*)horizontalLanczos.rawData;
+				for (int y = 0; y < height; y++)
+				{
+					for (int x = 0; x < width; x++)
+					{
+						double srcY = y * transform.scaleY + imgLanczosWindowY;
+
+						const int iSrcX = x;
+						const int iSrcY = (int)floor(srcY);
+
+						const double yOffset = iSrcY - srcY;
+
+						const float* srcPixel = &srcPixels[iSrcY * width + iSrcX];
+
+						double lanczosAcc = 0.0;
+						double srcAcc = 0.0;
+						for (int ly = -imgLanczosWindowY + 1; ly < imgLanczosWindowY; ly++)
+						{
+							float pixel = srcPixel[ly * width];
+							if (pixel == inf) continue;
+
+							double l = EvalLanczos(LanczosWindowSize, (ly + yOffset) * invImgLanczosWindowY);
+
+							lanczosAcc += l;
+							srcAcc += pixel * l;
+						}
+
+						dstPixels[y * width + x] = (lanczosAcc == 0.0) ? invalidValue : (s16)(srcAcc / lanczosAcc);
+					}
+				}
+			}
+		}
 
 		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue)
 		{
@@ -307,8 +426,7 @@ namespace dw
 				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue ? invalidValue->value.u8[0] : 0);
 			case DT_S16:
 #if ALLOW_AMP
-				//return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
-				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
+				return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
 #else
 				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
 #endif
