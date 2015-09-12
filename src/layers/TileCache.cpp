@@ -73,8 +73,8 @@ namespace dw
 			{
 				// TODO: enumerate all top level tiles and create missing ones
 
-				int width = 128;
-				int height = 128;
+				int width = 2048;
+				int height = 2048;
 				ContentType ct = CT_Image_Raw_S16;
 				DataType dt = DT_S16; 
 				
@@ -90,7 +90,7 @@ namespace dw
 						tileRequestUri += "&WIDTH=" + to_string(width);
 						tileRequestUri += "&HEIGHT=" + to_string(height);
 						tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
-						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 1) + "," + to_string(y + 1); // 10.0,46.0,11.0,47.0
+						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 0.5) + "," + to_string(y + 0.5); // 10.0,46.0,11.0,47.0
 
 						HTTPClientSession s("localhost", 8282);
 						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);

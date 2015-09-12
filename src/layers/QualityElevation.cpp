@@ -437,6 +437,8 @@ namespace Layers
 			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
 			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
+			// TODO: fill up invalid values within sampling area with SRTMv4 data
+
 			high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
 			InvalidValue iv(InvalidValueASTER);
