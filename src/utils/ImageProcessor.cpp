@@ -288,6 +288,8 @@ namespace dw
 			}
 		}
 
+
+#if ALLOW_AMP
 		static float EvalLanczosAMP(int filter_size, float x) restrict(amp)
 		{
 			float floatFilterSize = (float)filter_size;
@@ -411,6 +413,7 @@ namespace dw
 				}
 			}
 		}
+#endif // ALLOW_AMP
 
 		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue)
 		{
