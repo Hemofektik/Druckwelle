@@ -328,22 +328,23 @@ namespace dw
 			const float invImgLanczosWindowY = LanczosWindowSize / (float)imgLanczosWindowY;
 
 			const float inf = numeric_limits<float>::infinity();
-			Image horizontalLanczos(dst.width, tmpImageHeight, DT_F32);
+			const int InvalidValueAMP = invalidValue;
 
 			float scaleX = (float)transform.scaleX;
+			float scaleY = (float)transform.scaleY;
 			float offsetX = (float)transform.offsetX;
+
+			texture<float, 2> horizontalLanczosTex(tmpImageHeight, dst.width);
+			texture_view<const float, 2> horizontalLanczosTexReadOnly(horizontalLanczosTex);
+			texture_view<float, 2> horizontalLanczosTexWriteOnly(horizontalLanczosTex);
 
 			// horizontal pass
 			{
-				array_view<float, 2> horizontalLanczosArray(horizontalLanczos.height, horizontalLanczos.width, (float*)horizontalLanczos.rawData);
 				texture<int, 2> srcPixelsTexture(src.height, src.width, (void*)src.rawData, (uint)src.rawDataSize, 16U);
 				texture_view<const int, 2> srcPixelsTextureViewReadOnly(srcPixelsTexture);
-				const int InvalidValieAMP = invalidValue;
-
-				horizontalLanczosArray.discard_data();
 
 				parallel_for_each(
-					horizontalLanczosArray.extent,
+					horizontalLanczosTexWriteOnly.extent,
 					[=, &srcPixelsTexture](index<2> idx) restrict(amp)
 					{
 						int x = idx[1];
@@ -362,7 +363,7 @@ namespace dw
 						{
 							index<2> srcIdx(iSrcY, iSrcX + lx);
 							int pixel = srcPixelsTextureViewReadOnly[srcIdx];
-							if (pixel == InvalidValieAMP) continue;
+							if (pixel == InvalidValueAMP) continue;
 
 							float l = EvalLanczosAMP(LanczosWindowSize, (lx + xOffset) * invImgLanczosWindowX);
 
@@ -371,44 +372,63 @@ namespace dw
 						}
 
 						float result = (lanczosAcc == 0.0) ? inf : (srcAcc / lanczosAcc);
-						horizontalLanczosArray[idx] = result;
+						horizontalLanczosTexWriteOnly.set(idx, result);
 					}
 				);
-
-				horizontalLanczosArray.synchronize();
 			}
 
 			// vertical pass
 			{
-				s16* dstPixels = (s16*)dst.rawData;
-				const float* srcPixels = (const float*)horizontalLanczos.rawData;
-				for (int y = 0; y < height; y++)
-				{
-					for (int x = 0; x < width; x++)
+				// we use int32 array view here because s16 UAVs are usually not supported by GPUs, thus we do a copy manually afterwards (see below)
+				array_view<int, 2> dstPixelsArray(src.height, src.width);
+				dstPixelsArray.discard_data();
+
+				parallel_for_each(
+					dstPixelsArray.extent,
+					[=](index<2> idx) restrict(amp)
 					{
-						double srcY = y * transform.scaleY + imgLanczosWindowY;
+						int x = idx[1];
+						int y = idx[0];
+
+						float srcY = y * scaleY + imgLanczosWindowY;
 
 						const int iSrcX = x;
-						const int iSrcY = (int)floor(srcY);
+						const int iSrcY = (int)fast_math::floor(srcY);
 
-						const double yOffset = iSrcY - srcY;
+						const float yOffset = iSrcY - srcY;
 
-						const float* srcPixel = &srcPixels[iSrcY * width + iSrcX];
-
-						double lanczosAcc = 0.0;
-						double srcAcc = 0.0;
+						float lanczosAcc = 0.0;
+						float srcAcc = 0.0;
 						for (int ly = -imgLanczosWindowY + 1; ly < imgLanczosWindowY; ly++)
 						{
-							float pixel = srcPixel[ly * width];
+							index<2> srcIdx(iSrcY + ly, iSrcX);
+							float pixel = horizontalLanczosTexReadOnly[srcIdx];
+
 							if (pixel == inf) continue;
 
-							double l = EvalLanczos(LanczosWindowSize, (ly + yOffset) * invImgLanczosWindowY);
+							float l = EvalLanczosAMP(LanczosWindowSize, (ly + yOffset) * invImgLanczosWindowY);
 
 							lanczosAcc += l;
 							srcAcc += pixel * l;
 						}
 
-						dstPixels[y * width + x] = (lanczosAcc == 0.0) ? invalidValue : (s16)(srcAcc / lanczosAcc);
+						int result = (lanczosAcc == 0.0) ? InvalidValueAMP : (int)(srcAcc / lanczosAcc);
+						dstPixelsArray[idx] = result;
+					}
+				);
+
+				dstPixelsArray.synchronize();
+
+				// copy s32 to s16 data
+				s16* dstImg = (s16*)dst.rawData;
+				for (int y = 0; y < dst.height; y++)
+				{
+					for (int x = 0; x < dst.width; x++)
+					{
+						index<2> srcIdx(y, x);
+
+						*dstImg = (s16)dstPixelsArray[srcIdx];
+						dstImg++;
 					}
 				}
 			}

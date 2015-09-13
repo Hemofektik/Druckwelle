@@ -35,7 +35,7 @@ namespace dw
 namespace Layers
 {
 	const astring LayerName = "QualityElevation";
-	const string LayerTitle = dwTEXT("ASTER + SRTMv3 High Quality Elevation Service");
+	const string LayerTitle = dwTEXT("ASTER + SRTMv4 High Quality Elevation Service");
 	const string LayerAbstract =
 		dwTEXT("The native resolution of this layer is 1 arc second per pixel.")
 		dwTEXT("A request's bounding box must not exceed 1° in width and height.")
