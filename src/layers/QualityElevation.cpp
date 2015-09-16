@@ -136,7 +136,7 @@ namespace Layers
 			{
 				const auto& entity = *di;
 				const auto extension = entity.path().extension();
-				if (is_regular_file(entity.status()) && entity.path().extension().generic_string() == ".zip")
+				if (is_regular_file(entity.status()) && extension.generic_string() == ".zip")
 				{
 					astring filepath = entity.path().string();
 					int latitudeSign = 1;

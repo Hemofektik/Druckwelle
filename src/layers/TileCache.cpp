@@ -9,12 +9,14 @@
 #include <istream>
 #include <ostream>
 #include <sstream>
+#include <filesystem>
 
 #include <thread>
 
 #include <ZFXMath.h>
 
 using namespace std;
+using namespace std::experimental::filesystem::v1;
 using namespace ZFXMath;
 
 using Poco::Net::HTTPClientSession;
@@ -35,22 +37,27 @@ namespace dw
 
 			virtual const char* GetIdentifier() const override
 			{
-				return "TileCache"; // TODO: make this dynamically configurable
+				return desc.id.c_str();
 			}
 
 			virtual const char_t* GetTitle() const override
 			{
-				return dwTEXT("Tile Cache"); // TODO: make this dynamically configurable
+				return desc.title.c_str();
+			}
+
+			virtual const char_t* GetAbstract() const override
+			{
+				return desc.abstract.c_str();
 			}
 
 			virtual int GetTileWidth() const override
 			{
-				return 3600;
+				return desc.tileWidth;
 			}
 
 			virtual int GetTileHeight() const override
 			{
-				return 3600;
+				return desc.tileHeight;
 			}
 
 			virtual const vector<DataType>& GetSuppordetFormats() const override
@@ -61,6 +68,10 @@ namespace dw
 
 			virtual bool Init(/* layerconfig */) override
 			{
+				ReadConfig();
+
+				EnumerateFiles();
+
 				createTileCacheThread = new thread([this] { CreateTileCacheAsync(); });
 
 				return true; 
@@ -75,9 +86,15 @@ namespace dw
 
 			struct TileCacheDescription
 			{
+				astring id;
+				string title;
+				string abstract;
+
 				astring srcHost;
 				u16 srcPort;
 				astring srcLayerName;
+				astring storagePath;
+				astring fileExtension;
 
 				u32 tileWidth;
 				u32 tileHeight;
@@ -89,13 +106,15 @@ namespace dw
 				u32 numTilesY;
 
 				u32 numLevels;
-
 			};
 
-			void CreateTileCacheAsync()
+			TileCacheDescription desc;
+			unique_ptr<u8> fileExists;
+
+			void ReadConfig(/* layerconfig */)
 			{
 				const int AsterPixelsPerDegree = 3600;
-				
+
 				const int NumSrcPixelsAlongLongitude = 360 * AsterPixelsPerDegree;
 				const int NumSrcPixelsAlongLatitude = 180 * AsterPixelsPerDegree;
 
@@ -104,9 +123,12 @@ namespace dw
 
 				const s16 InvalidValueASTER = -9999;
 
-				TileCacheDescription desc;
+				desc.id = "Tile Cache";
+				desc.title = dwTEXT("Tile Cache");
+				desc.abstract = dwTEXT("");
+
 				desc.srcHost = "localhost";
-				desc.srcPort = 8282;
+				desc.srcPort = 8282; 
 				desc.srcLayerName = "QualityElevation";
 
 				desc.tileWidth = 2048;
@@ -118,7 +140,40 @@ namespace dw
 				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
 				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
 				desc.numLevels = Min(PowerOfTwoLog2(desc.numTilesX), PowerOfTwoLog2(desc.numTilesY)) + 1;
+			}
 
+			void EnumerateFiles()
+			{
+				fileExists.reset(new u8[desc.numTilesX * desc.numTilesY]);
+				memset(fileExists.get(), 0, desc.numTilesX * desc.numTilesY);
+				for (directory_iterator di(desc.storagePath); di != end(di); di++)
+				{
+					const auto& entity = *di;
+					if (!is_directory(entity.status())) continue;
+
+					int y = atoi(entity.path().filename().generic_string().c_str());
+
+					for (directory_iterator fi(entity); fi != end(fi); di++)
+					{
+						const auto& fileEntity = *fi;
+						const auto extension = fileEntity.path().extension();
+						if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
+						{
+							int x = atoi(entity.path().filename().generic_string().c_str());
+
+							fileExists.get()[y * desc.numTilesX + x] = true;
+						}
+					}
+				}
+			}
+
+			void StoreTileToDisk(Image& tileImg, int x, int y)
+			{
+
+			}
+
+			void CreateTileCacheAsync()
+			{
 				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
 				const size expectedTileSize = tileImg.rawDataSize;
 
@@ -128,6 +183,11 @@ namespace dw
 				{
 					for (int x = 0; x < desc.numTilesX; x++)
 					{
+						if (fileExists.get()[y * desc.numTilesX + x])
+						{
+							continue;
+						}
+
 						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
 						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
 						tileRequestUri += "&HEIGHT=" + to_string(desc.tileHeight);
@@ -159,9 +219,11 @@ namespace dw
 							}
 						}
 
-						// TODO: pass tile to cache creator thingy
+						StoreTileToDisk(tileImg, x, y);
 					}
 				}
+
+
 			}
 		};
 
