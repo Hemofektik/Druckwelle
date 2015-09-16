@@ -9,8 +9,8 @@ namespace dw
 		bool ownsRawDataPointer;
 
 	public:
-		u8* rawData;
 		size rawDataSize;
+		u8* rawData;
 		
 		int width;
 		int height;

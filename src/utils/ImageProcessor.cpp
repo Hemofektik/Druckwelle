@@ -28,8 +28,8 @@ namespace dw
 {
 	Image::Image(int width, int height, DataType dataType)
 		: ownsRawDataPointer(true)
-		, rawData(new u8[width * height * DataTypePixelSize[dataType]])
 		, rawDataSize(width * height * DataTypePixelSize[dataType])
+		, rawData((rawDataSize > 0) ? new u8[rawDataSize] : NULL)
 		, width(width)
 		, height(height)
 		, rawPixelSize(DataTypePixelSize[dataType])
@@ -42,8 +42,8 @@ namespace dw
 
 	Image::Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer)
 		: ownsRawDataPointer(ownsRawDataPointer)
-		, rawData(rawData)
 		, rawDataSize(width * height * DataTypePixelSize[dataType])
+		, rawData(rawData)
 		, width(width)
 		, height(height)
 		, rawPixelSize(DataTypePixelSize[dataType])
@@ -524,6 +524,8 @@ namespace dw
 				assert(false); // requested datatype not implemented yet, sorry
 				break;
 			}
+
+			return true;
 		}
 	}
 }

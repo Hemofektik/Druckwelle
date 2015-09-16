@@ -109,7 +109,11 @@ namespace dw
 			};
 
 			TileCacheDescription desc;
-			unique_ptr<u8> fileExists;
+			unique_ptr<u8> fileStatus;
+
+			const u8 FileStatus_Missing = 0;
+			const u8 FileStatus_Empty = 1;
+			const u8 FileStatus_Exists = 2;
 
 			void ReadConfig(/* layerconfig */)
 			{
@@ -144,8 +148,8 @@ namespace dw
 
 			void EnumerateFiles()
 			{
-				fileExists.reset(new u8[desc.numTilesX * desc.numTilesY]);
-				memset(fileExists.get(), 0, desc.numTilesX * desc.numTilesY);
+				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
+				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
 				for (directory_iterator di(desc.storagePath); di != end(di); di++)
 				{
 					const auto& entity = *di;
@@ -161,7 +165,9 @@ namespace dw
 						{
 							int x = atoi(entity.path().filename().generic_string().c_str());
 
-							fileExists.get()[y * desc.numTilesX + x] = true;
+							auto fileSize = file_size(entity.path());
+
+							fileStatus.get()[y * desc.numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
 						}
 					}
 				}
@@ -174,6 +180,7 @@ namespace dw
 
 			void CreateTileCacheAsync()
 			{
+				Image emptyTile(0, 0, desc.dataType);
 				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
 				const size expectedTileSize = tileImg.rawDataSize;
 
@@ -183,7 +190,7 @@ namespace dw
 				{
 					for (int x = 0; x < desc.numTilesX; x++)
 					{
-						if (fileExists.get()[y * desc.numTilesX + x])
+						if (fileStatus.get()[y * desc.numTilesX + x] == FileStatus_Missing)
 						{
 							continue;
 						}
@@ -215,6 +222,7 @@ namespace dw
 						{
 							if (utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
 							{
+								StoreTileToDisk(emptyTile, x, y);
 								continue;
 							}
 						}
