@@ -27,7 +27,22 @@ using namespace std;
 namespace dw
 {
 	Image::Image(int width, int height, DataType dataType)
-		: rawData(new u8[width * height * DataTypePixelSize[dataType]])
+		: ownsRawDataPointer(true)
+		, rawData(new u8[width * height * DataTypePixelSize[dataType]])
+		, rawDataSize(width * height * DataTypePixelSize[dataType])
+		, width(width)
+		, height(height)
+		, rawPixelSize(DataTypePixelSize[dataType])
+		, rawDataType(dataType)
+		, processedData(NULL)
+		, processedDataSize(0)
+		, processedContentType(CT_Unknown)
+	{
+	}
+
+	Image::Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer)
+		: ownsRawDataPointer(ownsRawDataPointer)
+		, rawData(rawData)
 		, rawDataSize(width * height * DataTypePixelSize[dataType])
 		, width(width)
 		, height(height)
@@ -58,7 +73,10 @@ namespace dw
 			break;
 		}
 
-		delete[] rawData;
+		if (ownsRawDataPointer)
+		{
+			delete[] rawData;
+		}
 	}
 
 	bool Image::SaveToPNG(const astring& filename)
@@ -435,7 +453,7 @@ namespace dw
 		}
 #endif // ALLOW_AMP
 
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue)
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue& invalidValue)
 		{
 			assert(src.rawDataType == dst.rawDataType);
 			assert(transform.offsetX - LanczosWindowSize * max(1.0, transform.scaleX) >= 0);
@@ -446,19 +464,62 @@ namespace dw
 			switch (src.rawDataType)
 			{
 			case DT_U8:
-				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue ? invalidValue->value.u8[0] : 0);
+				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().u8[0] : 0);
 			case DT_S16:
 #if ALLOW_AMP
-				return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
+				return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().s16[0] : 0);
 #else
-				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue ? invalidValue->value.s16[0] : 0);
+				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().s16[0] : 0);
 #endif
 			case DT_U32:
-				return SampleWithLanczosInternal<u32>(src, dst, transform, invalidValue ? invalidValue->value.u32[0] : 0);
+				return SampleWithLanczosInternal<u32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().u32[0] : 0);
 			case DT_F32:
-				return SampleWithLanczosInternal<f32>(src, dst, transform, invalidValue ? invalidValue->value.f32[0] : 0);
+				return SampleWithLanczosInternal<f32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().f32[0] : 0);
 			case DT_F64:
-				return SampleWithLanczosInternal<f64>(src, dst, transform, invalidValue ? invalidValue->value.f64 : 0);
+				return SampleWithLanczosInternal<f64>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().f64 : 0);
+			default:
+				assert(false); // requested datatype not implemented yet, sorry
+				break;
+			}
+		}
+
+		template<typename T>
+		bool IsImageCompletelyInvalid(const Image& img, const T invalidValue)
+		{
+			const T* imgPixels = (const T*)img.rawData;
+			const T* imgPixelsEnd = (const T*)(img.rawData + img.rawDataSize);
+
+			while (imgPixels < imgPixelsEnd)
+			{
+				const T imgPixel = *imgPixels;
+
+				if (imgPixel != invalidValue)
+				{
+					return false;
+				}
+
+				imgPixels++;
+			}
+
+			return true;
+		}
+
+		bool IsImageCompletelyInvalid(const Image& img, const InvalidValue& invalidValue)
+		{
+			assert(invalidValue.IsSet());
+
+			switch (img.rawDataType)
+			{
+			case DT_U8:
+				return IsImageCompletelyInvalid<u8>(img, invalidValue.GetValue().u8[0]);
+			case DT_S16:
+				return IsImageCompletelyInvalid<s16>(img, invalidValue.GetValue().s16[0]);
+			case DT_U32:
+				return IsImageCompletelyInvalid<u32>(img, invalidValue.GetValue().u32[0]);
+			case DT_F32:
+				return IsImageCompletelyInvalid<f32>(img, invalidValue.GetValue().f32[0]);
+			case DT_F64:
+				return IsImageCompletelyInvalid<f64>(img, invalidValue.GetValue().f64);
 			default:
 				assert(false); // requested datatype not implemented yet, sorry
 				break;

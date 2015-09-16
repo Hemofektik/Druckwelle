@@ -10,5 +10,5 @@ Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++
 ### Built-in WMS Layers ###
 
  * Example Layer (showing how to implement the basics for your own layer)
- * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v3 (3 arc seconds))
+ * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v4 (3 arc seconds))
 

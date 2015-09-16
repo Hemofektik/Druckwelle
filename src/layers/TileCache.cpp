@@ -1,5 +1,6 @@
 
 #include "../WebMapTileService.h"
+#include "../utils/ImageProcessor.h"
 
 #include <Poco/Net/HTTPRequest.h>
 #include "Poco/Net/HTTPClientSession.h"
@@ -11,7 +12,10 @@
 
 #include <thread>
 
+#include <ZFXMath.h>
+
 using namespace std;
+using namespace ZFXMath;
 
 using Poco::Net::HTTPClientSession;
 using Poco::Net::HTTPRequest;
@@ -69,30 +73,68 @@ namespace dw
 
 		private:
 
+			struct TileCacheDescription
+			{
+				astring srcHost;
+				u16 srcPort;
+				astring srcLayerName;
+
+				u32 tileWidth;
+				u32 tileHeight;
+				ContentType contentType;
+				DataType dataType;
+				utils::InvalidValue invalidValue;
+
+				u32 numTilesX;
+				u32 numTilesY;
+
+				u32 numLevels;
+
+			};
+
 			void CreateTileCacheAsync()
 			{
-				// TODO: enumerate all top level tiles and create missing ones
-
-				int width = 2048;
-				int height = 2048;
-				ContentType ct = CT_Image_Raw_S16;
-				DataType dt = DT_S16; 
+				const int AsterPixelsPerDegree = 3600;
 				
-				size expectedTileSize = width * height * DataTypePixelSize[dt];
-				u8* data = new u8[expectedTileSize];
+				const int NumSrcPixelsAlongLongitude = 360 * AsterPixelsPerDegree;
+				const int NumSrcPixelsAlongLatitude = 180 * AsterPixelsPerDegree;
 
+				const u32 NumDstPixelsAlongLongitude = NextPoweOfTwo(NumSrcPixelsAlongLongitude);
+				const u32 NumDstPixelsAlongLatitude = NextPoweOfTwo(NumSrcPixelsAlongLatitude);
+
+				const s16 InvalidValueASTER = -9999;
+
+				TileCacheDescription desc;
+				desc.srcHost = "localhost";
+				desc.srcPort = 8282;
+				desc.srcLayerName = "QualityElevation";
+
+				desc.tileWidth = 2048;
+				desc.tileHeight = 2048;
+				desc.contentType = CT_Image_Raw_S16;
+				desc.dataType = DT_S16;
+				desc.invalidValue = utils::InvalidValue(InvalidValueASTER);
+
+				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
+				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
+				desc.numLevels = Min(PowerOfTwoLog2(desc.numTilesX), PowerOfTwoLog2(desc.numTilesY)) + 1;
+
+				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
+				const size expectedTileSize = tileImg.rawDataSize;
+
+				// TODO: create only missing tiles
 				bool runCacheCreation = true;
-				for (int y = 43; y < 53 && runCacheCreation; y++)
+				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
 				{
-					for (int x = 0; x < 14; x++)
+					for (int x = 0; x < desc.numTilesX; x++)
 					{
-						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=QualityElevation&STYLES=";
-						tileRequestUri += "&WIDTH=" + to_string(width);
-						tileRequestUri += "&HEIGHT=" + to_string(height);
-						tileRequestUri += "&FORMAT=" + ContentTypeId[CT_Image_Raw_S16];
-						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 0.5) + "," + to_string(y + 0.5); // 10.0,46.0,11.0,47.0
+						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
+						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
+						tileRequestUri += "&HEIGHT=" + to_string(desc.tileHeight);
+						tileRequestUri += "&FORMAT=" + ContentTypeId[desc.contentType];
+						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 0.5) + "," + to_string(y + 0.5);
 
-						HTTPClientSession s("localhost", 8282);
+						HTTPClientSession s(desc.srcHost, desc.srcPort);
 						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
 
 						s.sendRequest(request);
@@ -100,19 +142,26 @@ namespace dw
 						istream& rs = s.receiveResponse(response);
 
 						std::streamsize len = 0;
-						rs.read((char*)data, expectedTileSize);
+						rs.read((char*)tileImg.rawData, expectedTileSize);
 						std::streamsize readSize = rs.gcount();
 						if (readSize < expectedTileSize)
 						{
 							runCacheCreation = false;
+							cout << "Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!";
 							break;
+						}
+
+						if (desc.invalidValue.IsSet())
+						{
+							if (utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
+							{
+								continue;
+							}
 						}
 
 						// TODO: pass tile to cache creator thingy
 					}
 				}
-
-				delete[] data;
 			}
 		};
 

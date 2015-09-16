@@ -125,8 +125,8 @@ namespace Layers
 			}
 
 			// load TOC from disk
-			//const path ASTERSourceDir("D:/ASTER/");
-			const path ASTERSourceDir("C:/Dev/temp/ASTER/");
+			const path ASTERSourceDir("D:/ASTER/");
+			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
@@ -442,7 +442,7 @@ namespace Layers
 			high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
 			InvalidValue iv(InvalidValueASTER);
-			SampleWithLanczos(elevation, img, st, &iv);
+			SampleWithLanczos(elevation, img, st, iv);
 
 			high_resolution_clock::time_point t2 = high_resolution_clock::now();
 			duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;

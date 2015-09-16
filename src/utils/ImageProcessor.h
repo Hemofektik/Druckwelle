@@ -6,6 +6,8 @@ namespace dw
 {
 	class Image
 	{
+		bool ownsRawDataPointer;
+
 	public:
 		u8* rawData;
 		size rawDataSize;
@@ -15,12 +17,13 @@ namespace dw
 		size rawPixelSize;
 
 		DataType rawDataType;
-		
+
 		u8* processedData;
 		size processedDataSize;
 		ContentType processedContentType;
 
 		Image(int width, int height, DataType dataType);
+		Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer);
 		~Image();
 
 		bool SaveToPNG(const astring& filename);
@@ -46,7 +49,8 @@ namespace dw
 
 		struct InvalidValue
 		{
-			union 
+		public:
+			union Value
 			{
 				u8		u8[8];
 				u16		u16[4];
@@ -54,30 +58,58 @@ namespace dw
 				u32		u32[2];
 				float	f32[2];
 				double	f64;
-			} value;
+			};
 
+
+		private:
+			Value value;
+			bool isSet;
+
+		public:
+
+			InvalidValue()
+			{
+				value.f64 = 0.0;
+				isSet = false;
+			}
 			InvalidValue(u8 invalidValue)
 			{
 				value.u8[0] = invalidValue;
+				isSet = true;
 			}
 			InvalidValue(u16 invalidValue)
 			{
 				value.u16[0] = invalidValue;
+				isSet = true;
 			}
 			InvalidValue(s16 invalidValue)
 			{
 				value.s16[0] = invalidValue;
+				isSet = true;
 			}
 			InvalidValue(u32 invalidValue)
 			{
 				value.u32[0] = invalidValue;
+				isSet = true;
 			}
 			InvalidValue(f64 invalidValue)
 			{
 				value.f64 = invalidValue;
+				isSet = true;
+			}
+
+			const Value GetValue() const
+			{
+				return value;
+			}
+
+			const bool IsSet() const
+			{
+				return isSet;
 			}
 		};
 
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue* invalidValue = NULL);
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue& invalidValue = InvalidValue());
+		bool IsImageCompletelyInvalid(const Image& img, const InvalidValue& invalidValue);
 	}
 }
