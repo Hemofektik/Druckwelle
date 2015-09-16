@@ -34,6 +34,7 @@ namespace dw
 		CT_Image_Raw_U32,
 		CT_Image_Raw_F32,
 		CT_Image_Raw_F64,
+		CT_Image_Elevation,
 
 		CT_NumContentTypes // must be last entry
 	};
@@ -47,6 +48,7 @@ namespace dw
 		"application/raw-u32",
 		"application/raw-f32",
 		"application/raw-f64",
+		"application/elevation",
 	};
 
 	enum DataType

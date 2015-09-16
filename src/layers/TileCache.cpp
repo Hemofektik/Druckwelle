@@ -63,7 +63,7 @@ namespace dw
 
 			virtual const vector<DataType>& GetSuppordetFormats() const override
 			{
-				static const vector<DataType> SuppordetFormats = { DT_RGBA8 };
+				static const vector<DataType> SuppordetFormats = { DT_S16 };
 				return SuppordetFormats;
 			}
 
@@ -99,7 +99,8 @@ namespace dw
 
 				u32 tileWidth;
 				u32 tileHeight;
-				ContentType contentType;
+				ContentType srcContentType;
+				ContentType cachedContentType;
 				DataType dataType;
 				utils::InvalidValue invalidValue;
 
@@ -136,11 +137,12 @@ namespace dw
 				desc.srcPort = 8282; 
 				desc.srcLayerName = "QualityElevation";
 				desc.storagePath = "D:/QECache";
-				desc.fileExtension = ".raw";
+				desc.fileExtension = ".elv";
 
 				desc.tileWidth = 2048;
 				desc.tileHeight = 2048;
-				desc.contentType = CT_Image_Raw_S16;
+				desc.srcContentType = CT_Image_Raw_S16;
+				desc.cachedContentType = CT_Image_Elevation;
 				desc.dataType = DT_S16;
 				desc.invalidValue = utils::InvalidValue(InvalidValueASTER);
 
@@ -180,8 +182,6 @@ namespace dw
 
 			void StoreTileToDisk(Image& tileImg, int x, int y)
 			{
-				utils::ConvertRawImageToContentType(tileImg, desc.contentType);
-
 				path path = desc.storagePath;
 
 				const int numXDigits = (int)RoundUp(Log10<double>(desc.numTilesX));
@@ -208,10 +208,11 @@ namespace dw
 				astring filename = xString + xStrEnd + desc.fileExtension;
 				path = path.append(filename);
 
+				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
 				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);
-
-				file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
-
+				{
+					file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
+				}
 				file.close();
 			}
 
@@ -234,8 +235,9 @@ namespace dw
 						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
 						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
 						tileRequestUri += "&HEIGHT=" + to_string(desc.tileHeight);
-						tileRequestUri += "&FORMAT=" + ContentTypeId[desc.contentType];
+						tileRequestUri += "&FORMAT=" + ContentTypeId[desc.srcContentType];
 						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 0.5) + "," + to_string(y + 0.5);
+						// TODO: fix BBOX
 
 						HTTPClientSession s(desc.srcHost, desc.srcPort);
 						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);

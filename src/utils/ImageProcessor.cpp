@@ -130,6 +130,24 @@ namespace dw
 	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
 	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
 
+	static const u8 ElevationFlag_RLE = 0xFE;
+	static const u8 ElevationFlag_Relative = 0xFF;
+	static bool CompressElevation(Image& img)
+	{
+		assert(img.rawDataType == DT_S16);
+
+		img.processedDataSize = 0;
+		img.processedData = new u8[img.rawDataSize];
+
+		s16* elevation = (s16*)img.rawData;
+		s16* elevationEnd = (s16*)(img.rawData + img.rawDataSize);
+		u8* compressedElevation = img.processedData;
+
+		//elevation
+
+		return true;
+	}
+
 	namespace utils
 	{
 		bool ConvertRawImageToContentType(Image& image, ContentType contentType)
@@ -169,6 +187,10 @@ namespace dw
 				image.processedData = image.rawData;
 				image.processedDataSize = image.rawDataSize;
 				return true;
+			case CT_Image_Elevation:
+			{
+				return CompressElevation(image);
+			}
 			case CT_Unknown:
 			default:
 				return false;
