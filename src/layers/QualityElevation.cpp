@@ -522,7 +522,7 @@ namespace Layers
 				int vIndex = y * NumASTERTilesX;
 				for (int x = startX; x <= endX; x++)
 				{
-					ASTERTile* asterTile = &asterTiles[vIndex + ((x + 360) % 360)]; // wrap around date border
+					ASTERTile* asterTile = &asterTiles[vIndex + ((x + NumASTERTilesX) % NumASTERTilesX)]; // wrap around date border
 
 					if (asterTile->latitude != MissingTileCoordinate)
 					{
@@ -531,6 +531,7 @@ namespace Layers
 				}
 			}
 
+			startX = (startX + NumASTERTilesX) % NumASTERTilesX;
 		}
 	};
 

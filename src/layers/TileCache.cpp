@@ -9,6 +9,7 @@
 #include <istream>
 #include <ostream>
 #include <sstream>
+#include <fstream>
 #include <filesystem>
 
 #include <thread>
@@ -134,6 +135,8 @@ namespace dw
 				desc.srcHost = "localhost";
 				desc.srcPort = 8282; 
 				desc.srcLayerName = "QualityElevation";
+				desc.storagePath = "D:/QECache";
+				desc.fileExtension = ".raw";
 
 				desc.tileWidth = 2048;
 				desc.tileHeight = 2048;
@@ -148,6 +151,8 @@ namespace dw
 
 			void EnumerateFiles()
 			{
+				create_directories(desc.storagePath);
+
 				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
 				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
 				for (directory_iterator di(desc.storagePath); di != end(di); di++)
@@ -157,15 +162,15 @@ namespace dw
 
 					int y = atoi(entity.path().filename().generic_string().c_str());
 
-					for (directory_iterator fi(entity); fi != end(fi); di++)
+					for (directory_iterator fi(entity.path()); fi != end(fi); fi++)
 					{
 						const auto& fileEntity = *fi;
 						const auto extension = fileEntity.path().extension();
 						if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
 						{
-							int x = atoi(entity.path().filename().generic_string().c_str());
+							int x = atoi(fileEntity.path().filename().generic_string().c_str());
 
-							auto fileSize = file_size(entity.path());
+							auto fileSize = file_size(fileEntity.path());
 
 							fileStatus.get()[y * desc.numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
 						}
@@ -175,7 +180,39 @@ namespace dw
 
 			void StoreTileToDisk(Image& tileImg, int x, int y)
 			{
+				utils::ConvertRawImageToContentType(tileImg, desc.contentType);
 
+				path path = desc.storagePath;
+
+				const int numXDigits = (int)RoundUp(Log10<double>(desc.numTilesX));
+				const int numYDigits = (int)RoundUp(Log10<double>(desc.numTilesY));
+
+				astring yString = "";
+				astring yStrEnd = to_string(y);
+				for (int d = 0; d < numYDigits - (int)yStrEnd.length(); d++)
+				{
+					yString.push_back('0');
+				}
+				yString += yStrEnd;
+
+				path = path.append(yString);
+				create_directory(path);
+
+				astring xString = "";
+				astring xStrEnd = to_string(x);
+				for (int d = 0; d < numXDigits - (int)xStrEnd.length(); d++)
+				{
+					xString.push_back('0');
+				}
+
+				astring filename = xString + xStrEnd + desc.fileExtension;
+				path = path.append(filename);
+
+				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);
+
+				file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
+
+				file.close();
 			}
 
 			void CreateTileCacheAsync()
@@ -184,13 +221,12 @@ namespace dw
 				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
 				const size expectedTileSize = tileImg.rawDataSize;
 
-				// TODO: create only missing tiles
 				bool runCacheCreation = true;
 				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
 				{
 					for (int x = 0; x < desc.numTilesX; x++)
 					{
-						if (fileStatus.get()[y * desc.numTilesX + x] == FileStatus_Missing)
+						if (fileStatus.get()[y * desc.numTilesX + x] != FileStatus_Missing)
 						{
 							continue;
 						}
@@ -230,8 +266,6 @@ namespace dw
 						StoreTileToDisk(tileImg, x, y);
 					}
 				}
-
-
 			}
 		};
 

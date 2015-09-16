@@ -8,6 +8,7 @@ namespace dw
 	{
 		bool ownsRawDataPointer;
 
+
 	public:
 		size rawDataSize;
 		u8* rawData;
@@ -26,6 +27,7 @@ namespace dw
 		Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer);
 		~Image();
 
+		void FreeProcessedData();
 		bool SaveToPNG(const astring& filename);
 
 		// srcType must be of same size as the DataType given in the ctor of this image

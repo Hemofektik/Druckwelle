@@ -56,6 +56,16 @@ namespace dw
 
 	Image::~Image()
 	{
+		FreeProcessedData();
+
+		if (ownsRawDataPointer)
+		{
+			delete[] rawData;
+		}
+	}
+
+	void Image::FreeProcessedData()
+	{
 		switch (processedContentType)
 		{
 		case dw::CT_Image_PNG:
@@ -73,10 +83,7 @@ namespace dw
 			break;
 		}
 
-		if (ownsRawDataPointer)
-		{
-			delete[] rawData;
-		}
+		processedData = NULL;
 	}
 
 	bool Image::SaveToPNG(const astring& filename)
@@ -128,6 +135,7 @@ namespace dw
 		bool ConvertRawImageToContentType(Image& image, ContentType contentType)
 		{
 			image.processedContentType = contentType;
+			image.FreeProcessedData();
 
 			switch (contentType)
 			{
