@@ -108,6 +108,10 @@ namespace dw
 				u32 numTilesY;
 
 				u32 numLevels;
+
+				u32 numXDigits;
+				u32 numYDigits;
+				u32 numLevelDigits;
 			};
 
 			TileCacheDescription desc;
@@ -149,22 +153,30 @@ namespace dw
 				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
 				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
 				desc.numLevels = Min(PowerOfTwoLog2(desc.numTilesX), PowerOfTwoLog2(desc.numTilesY)) + 1;
+
+				desc.numXDigits = (u32)RoundUp(Log10<double>(desc.numTilesX));
+				desc.numYDigits = (u32)RoundUp(Log10<double>(desc.numTilesY));
+				desc.numLevelDigits = (u32)RoundUp(Log10<double>(desc.numLevels));
 			}
 
 			bool EnumerateFiles()
 			{
+				path topLevelPath = desc.storagePath;
+
 				error_code err;
-				create_directories(desc.storagePath, err);
+				create_directories(topLevelPath, err);
 
 				if (err)
 				{
-					cout << "Tile Cache Error: Creating Directory Failed: " << desc.storagePath << " (" << err.message() << ")"<< endl;
+					cout << "Tile Cache Error: Creating Directory Failed: " << topLevelPath << " (" << err.message() << ")"<< endl;
 					return false;
 				}
 
+				topLevelPath.append(CreateZeroPaddedString(desc.numLevels - 1, desc.numLevelDigits));
+
 				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
 				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
-				for (directory_iterator di(desc.storagePath); di != end(di); di++)
+				for (directory_iterator di(topLevelPath); di != end(di); di++)
 				{
 					const auto& entity = *di;
 					if (!is_directory(entity.status())) continue;
@@ -189,32 +201,39 @@ namespace dw
 				return true;
 			}
 
-			void StoreTileToDisk(Image& tileImg, int x, int y)
+			astring CreateZeroPaddedString(int number, u32 numberOfDigits)
+			{
+				astring str = "";
+				astring strEnd = to_string(number);
+				for (int d = 0; d < numberOfDigits - (int)strEnd.length(); d++)
+				{
+					str.push_back('0');
+				}
+				str += strEnd;
+				return str;
+			}
+
+			bool StoreTileToDisk(Image& tileImg, int x, int y, int level)
 			{
 				path path = desc.storagePath;
 
-				const int numXDigits = (int)RoundUp(Log10<double>(desc.numTilesX));
-				const int numYDigits = (int)RoundUp(Log10<double>(desc.numTilesY));
+				astring levelString = CreateZeroPaddedString(level, desc.numLevelDigits);
+				astring yString = CreateZeroPaddedString(y, desc.numYDigits);
 
-				astring yString = "";
-				astring yStrEnd = to_string(y);
-				for (int d = 0; d < numYDigits - (int)yStrEnd.length(); d++)
+				path = path.append(levelString).append(yString);
+
+				error_code err;
+				create_directories(path, err);
+
+				if (err)
 				{
-					yString.push_back('0');
-				}
-				yString += yStrEnd;
-
-				path = path.append(yString);
-				create_directory(path);
-
-				astring xString = "";
-				astring xStrEnd = to_string(x);
-				for (int d = 0; d < numXDigits - (int)xStrEnd.length(); d++)
-				{
-					xString.push_back('0');
+					cout << "Tile Cache Error: Creating Directory Failed: " << path << " (" << err.message() << ")" << endl;
+					return false;
 				}
 
-				astring filename = xString + xStrEnd + desc.fileExtension;
+				astring xString = CreateZeroPaddedString(x, desc.numXDigits);
+
+				astring filename = xString + desc.fileExtension;
 				path = path.append(filename);
 
 				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
@@ -223,7 +242,14 @@ namespace dw
 				{
 					file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
 				}
+				else if(file.bad())
+				{
+					cout << "Tile Cache Error: Creating File Failed: " << path << endl;
+					return false;
+				}
 				file.close();
+
+				return true;
 			}
 
 			void CreateTileCacheAsync()
@@ -261,8 +287,8 @@ namespace dw
 						std::streamsize readSize = rs.gcount();
 						if (readSize < expectedTileSize)
 						{
-							runCacheCreation = false;
 							cout << "Tile Cache Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!" << endl;
+							runCacheCreation = false;
 							break;
 						}
 
@@ -270,12 +296,18 @@ namespace dw
 						{
 							if (utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
 							{
-								StoreTileToDisk(emptyTile, x, y);
+								if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+								{
+									break;
+								}
 								continue;
 							}
 						}
 
-						StoreTileToDisk(tileImg, x, y);
+						if (!StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
+						{
+							break;
+						}
 					}
 				}
 			}
