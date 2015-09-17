@@ -71,7 +71,7 @@ namespace dw
 			{
 				ReadConfig();
 
-				EnumerateFiles();
+				if (!EnumerateFiles()) return false;
 
 				createTileCacheThread = new thread([this] { CreateTileCacheAsync(); });
 
@@ -151,9 +151,16 @@ namespace dw
 				desc.numLevels = Min(PowerOfTwoLog2(desc.numTilesX), PowerOfTwoLog2(desc.numTilesY)) + 1;
 			}
 
-			void EnumerateFiles()
+			bool EnumerateFiles()
 			{
-				create_directories(desc.storagePath);
+				error_code err;
+				create_directories(desc.storagePath, err);
+
+				if (err)
+				{
+					cout << "Tile Cache Error: Creating Directory Failed: " << desc.storagePath << " (" << err.message() << ")"<< endl;
+					return false;
+				}
 
 				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
 				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
@@ -178,6 +185,8 @@ namespace dw
 						}
 					}
 				}
+
+				return true;
 			}
 
 			void StoreTileToDisk(Image& tileImg, int x, int y)
@@ -210,6 +219,7 @@ namespace dw
 
 				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
 				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);
+				if (file.is_open())
 				{
 					file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
 				}
@@ -252,7 +262,7 @@ namespace dw
 						if (readSize < expectedTileSize)
 						{
 							runCacheCreation = false;
-							cout << "Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!";
+							cout << "Tile Cache Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!" << endl;
 							break;
 						}
 

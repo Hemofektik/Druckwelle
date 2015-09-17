@@ -13,6 +13,7 @@ using namespace Concurrency::graphics;
 
 #include <algorithm>
 #include <fstream>
+#include <vector>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
@@ -131,7 +132,7 @@ namespace dw
 	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
 
 	static const u8 ElevationFlag_RLE = 0xFE;
-	static const u8 ElevationFlag_Relative = 0xFF;
+	static const u8 ElevationFlag_RelativeBulk = 0xFF;
 	static bool CompressElevation(Image& img)
 	{
 		assert(img.rawDataType == DT_S16);
@@ -140,10 +141,60 @@ namespace dw
 		img.processedData = new u8[img.rawDataSize];
 
 		s16* elevation = (s16*)img.rawData;
-		s16* elevationEnd = (s16*)(img.rawData + img.rawDataSize);
 		u8* compressedElevation = img.processedData;
 
-		//elevation
+		struct RowSegment
+		{
+			u8 flag;
+			u16 numElements;
+		};
+
+		vector<RowSegment> segments(img.width / 2);
+		for (int y = 0; y < img.height; y++)
+		{
+			segments.clear();
+
+			s16* elevationEnd = (s16*)img.rawData + img.width;
+			while(elevation < elevationEnd)
+			{
+				RowSegment segment;
+				segment.flag = 0;
+				segment.numElements = 1;
+
+				bool hasStartValue = false;
+				s16 startValue = 0;
+				while (elevation < elevationEnd)
+				{
+					s16 value = *elevation;
+
+					if (!hasStartValue)
+					{
+						startValue = value;
+					}
+					else
+					{
+						u8 flag = (value == startValue) ? ElevationFlag_RLE : ElevationFlag_RelativeBulk;
+						if (segment.flag == 0)
+						{
+							segment.flag = flag;
+						}
+						else if(segment.flag != flag)
+						{
+							break;
+						}
+
+						segment.numElements++;
+					}
+
+					elevation++;
+				}
+
+				segments.push_back(segment);
+			}
+
+			int numSegments = segments.size();
+
+		}
 
 		return true;
 	}
