@@ -258,6 +258,8 @@ namespace dw
 				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
 				const size expectedTileSize = tileImg.rawDataSize;
 
+
+
 				bool runCacheCreation = true;
 				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
 				{
@@ -280,6 +282,14 @@ namespace dw
 
 						s.sendRequest(request);
 						HTTPResponse response;
+
+						if (response.getStatus() != HTTPResponse::HTTP_OK)
+						{
+							cout << "Tile Cache Error: failed to receive tile (" << x << "," << y << ")! http return code: "  << response.getStatus() << endl;
+							runCacheCreation = false;
+							break;
+						}
+
 						istream& rs = s.receiveResponse(response);
 
 						std::streamsize len = 0;
@@ -298,6 +308,7 @@ namespace dw
 							{
 								if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
 								{
+									runCacheCreation = false;
 									break;
 								}
 								continue;
@@ -306,6 +317,7 @@ namespace dw
 
 						if (!StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
 						{
+							runCacheCreation = false;
 							break;
 						}
 					}
