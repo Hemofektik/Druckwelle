@@ -575,6 +575,31 @@ namespace ZFXMath {
 
 		return p0 + p1;
 	}
+	
+	// returns the next bigger POT of the given value
+	static inline uint32_t NextPowerOfTwo(uint32_t v)
+	{
+		v |= v >> 1;
+		v |= v >> 2;
+		v |= v >> 4;
+		v |= v >> 8;
+		v |= v >> 16;
+		v++;
+		return v;
+	}
+
+	// returns log2 of any value that is POT
+	static inline uint32_t Log2OfPowerOfTwo(uint32_t v)
+	{
+		static const unsigned int b[] = {0xAAAAAAAA, 0xCCCCCCCC, 0xF0F0F0F0, 0xFF00FF00, 0xFFFF0000};
+		register unsigned int r = (v & b[0]) != 0;
+		r |= ((v & b[4]) != 0) << 4;
+		r |= ((v & b[3]) != 0) << 3;
+		r |= ((v & b[2]) != 0) << 2;
+		r |= ((v & b[1]) != 0) << 1;
+		return r;
+	}
+		
 
 
 	/// \if DE

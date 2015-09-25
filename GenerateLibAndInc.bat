@@ -65,6 +65,8 @@ xcopy /E /Y 3rdparty\poco\include inc
 xcopy /E /Y 3rdparty\poco\lib lib
 xcopy /E /Y 3rdparty\poco\bin\*.dll bin
 
+:: mark all headers read only
+attrib +R inc\* /S
 
 mkdir bin\Debug
 mkdir bin\Release

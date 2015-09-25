@@ -204,6 +204,9 @@ namespace dw
 		if (bboxValue == bboxEnd || *bboxValue != ',') return HandleServiceException(connection, "InvalidBBOX");
 		gmr.bbox.maxY = strtod(bboxValue + 1, &bboxValue);
 
+		if (gmr.bbox.minX > gmr.bbox.maxX) return HandleServiceException(connection, "InvalidBBOX");
+		if (gmr.bbox.minY > gmr.bbox.maxY) return HandleServiceException(connection, "InvalidBBOX");
+
 		return HandleGetMapRequest(connection, layers, contentType, gmr);
 	}
 

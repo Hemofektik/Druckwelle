@@ -532,6 +532,11 @@ namespace Layers
 			}
 
 			startX = (startX + NumASTERTilesX) % NumASTERTilesX;
+
+			if (asterBBox.minX < 0.0 && startX > 0)
+			{
+				startX -= NumASTERTilesX;
+			}
 		}
 	};
 

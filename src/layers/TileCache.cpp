@@ -128,8 +128,8 @@ namespace dw
 				const int NumSrcPixelsAlongLongitude = 360 * AsterPixelsPerDegree;
 				const int NumSrcPixelsAlongLatitude = 180 * AsterPixelsPerDegree;
 
-				const u32 NumDstPixelsAlongLongitude = NextPoweOfTwo(NumSrcPixelsAlongLongitude);
-				const u32 NumDstPixelsAlongLatitude = NextPoweOfTwo(NumSrcPixelsAlongLatitude);
+				const u32 NumDstPixelsAlongLongitude = NextPowerOfTwo(NumSrcPixelsAlongLongitude);
+				const u32 NumDstPixelsAlongLatitude = NextPowerOfTwo(NumSrcPixelsAlongLatitude);
 
 				const s16 InvalidValueASTER = -9999;
 
@@ -152,7 +152,7 @@ namespace dw
 
 				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
 				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
-				desc.numLevels = Min(PowerOfTwoLog2(desc.numTilesX), PowerOfTwoLog2(desc.numTilesY)) + 1;
+				desc.numLevels = Min(Log2OfPowerOfTwo(desc.numTilesX), Log2OfPowerOfTwo(desc.numTilesY)) + 1;
 
 				desc.numXDigits = (u32)RoundUp(Log10<double>(desc.numTilesX));
 				desc.numYDigits = (u32)RoundUp(Log10<double>(desc.numTilesY));
@@ -258,7 +258,8 @@ namespace dw
 				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
 				const size expectedTileSize = tileImg.rawDataSize;
 
-
+				const double TileWidthInDegree = (360.0 / desc.numTilesX);
+				const double TileHeightInDegree = (180.0 / desc.numTilesY);
 
 				bool runCacheCreation = true;
 				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
@@ -274,8 +275,13 @@ namespace dw
 						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
 						tileRequestUri += "&HEIGHT=" + to_string(desc.tileHeight);
 						tileRequestUri += "&FORMAT=" + ContentTypeId[desc.srcContentType];
-						tileRequestUri += "&BBOX=" + to_string(x) + "," + to_string(y) + "," + to_string(x + 0.5) + "," + to_string(y + 0.5);
-						// TODO: fix BBOX
+
+						const double left = (x / (double)desc.numTilesX) * 360.0 - 180.0;
+						const double top = -(y / (double)desc.numTilesY) * 180.0 + 90.0;
+						const double right = left + TileWidthInDegree;
+						const double bottom = top - TileHeightInDegree;
+
+						tileRequestUri += "&BBOX=" + to_string(left) + "," + to_string(bottom) + "," + to_string(right) + "," + to_string(top);
 
 						HTTPClientSession s(desc.srcHost, desc.srcPort);
 						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
