@@ -26,6 +26,9 @@ endif()
 
 include_directories(
 	${CMAKE_SOURCE_DIR}/inc
+	${CMAKE_SOURCE_DIR}/3rdparty/cpplinq
+	${CMAKE_SOURCE_DIR}/3rdparty/stb
+	${CMAKE_SOURCE_DIR}/3rdparty/ZFXMath/include
 )
 
 link_libraries (	

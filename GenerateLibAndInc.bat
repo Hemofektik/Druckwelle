@@ -6,9 +6,6 @@ mkdir lib
 mkdir inc
 mkdir bin
 
-:: CPPLinq
-xcopy /E /Y 3rdparty\cpplinq\*.* inc
-
 :: POSIX
 xcopy /E /Y 3rdparty\POSIX\*.h inc
 
@@ -50,15 +47,9 @@ xcopy /E /Y 3rdparty\rapidjson\include inc\rapidjson
 xcopy /E /Y 3rdparty\gsl\include inc
 xcopy /E /Y 3rdparty\gsl\lib lib
 
-:: stb
-xcopy /E /Y 3rdparty\stb inc
-
 :: GTEngine
 xcopy /E /Y 3rdparty\GeometricTools\GTEngine\Include inc
 xcopy /E /Y 3rdparty\GeometricTools\lib lib
-
-:: ZFXMath
-xcopy /E /Y 3rdparty\ZFXMath\include inc
 
 :: poco
 xcopy /E /Y 3rdparty\poco\include inc
