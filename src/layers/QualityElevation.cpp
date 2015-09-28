@@ -125,8 +125,9 @@ namespace Layers
 			}
 
 			// load TOC from disk
-			const path ASTERSourceDir("Z:/InnovationLab/ASTER/");
+			//const path ASTERSourceDir("Z:/InnovationLab/ASTER/");
 			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
+			const path ASTERSourceDir("D:/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
