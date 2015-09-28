@@ -9,6 +9,7 @@
 #include "utils/ImageProcessor.h"
 #include "WebMapService.h"
 
+
 using namespace std;
 using namespace std::chrono;
 
@@ -18,7 +19,6 @@ static const char* wmsCapabilites =
 
 namespace dw
 {
-
 	WebMapService::WebMapService()
 	{
 	}

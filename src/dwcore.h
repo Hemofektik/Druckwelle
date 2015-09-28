@@ -75,6 +75,12 @@ namespace dw
 		sizeof(f64),
 	};
 
+	enum ServiceType
+	{
+		WMS,
+		WMTS
+	};
+
 	struct BBox
 	{
 		double minX;

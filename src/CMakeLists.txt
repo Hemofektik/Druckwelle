@@ -35,10 +35,11 @@ link_libraries (
 	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
+	optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
+	debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
 )
-
 
 
 add_executable (
