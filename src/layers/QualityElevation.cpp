@@ -125,7 +125,7 @@ namespace Layers
 			}
 
 			// load TOC from disk
-			const path ASTERSourceDir("D:/ASTER/");
+			const path ASTERSourceDir("Z:/InnovationLab/ASTER/");
 			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
@@ -408,7 +408,7 @@ namespace Layers
 
 				const auto& tile = asterTilesTouched[t];
 
-				int x = tile->longitude - asterStartX - AsterTileStartLongitude;
+				int x = (tile->longitude - asterStartX - AsterTileStartLongitude + NumASTERTilesX) % NumASTERTilesX;
 				int y = tile->latitude - asterStartY - asterTileStartLatitude;
 
 				int pixelOffset = ((numAsterTilesY - y - 1) * numPixelsX + x) * AsterPixelsPerDegree * sizeof(s16);
@@ -515,7 +515,7 @@ namespace Layers
 			numTilesY = endY - startY + 1;
 
 			int clampedStartY = max(startY, 0);
-			endY = min(endY, asterTileEndLatitude - asterTileStartLatitude + 1);
+			endY = min(endY, asterTileEndLatitude - asterTileStartLatitude);
 
 			for (int y = clampedStartY; y <= endY; y++)
 			{
@@ -533,7 +533,7 @@ namespace Layers
 
 			startX = (startX + NumASTERTilesX) % NumASTERTilesX;
 
-			if (asterBBox.minX < 0.0 && startX > 0)
+			if (asterBBox.minX < 0.0 && startX > AsterTileEndLongitude)
 			{
 				startX -= NumASTERTilesX;
 			}
