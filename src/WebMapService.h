@@ -14,8 +14,8 @@ namespace dw
 
 		struct GetMapRequest
 		{
-			astring styles;
-			astring crs;
+			string styles;
+			string crs;
 			BBox bbox;
 			int width;
 			int height;
@@ -57,7 +57,7 @@ namespace dw
 		class LayerFactory
 		{
 		public:
-			LayerFactory(const astring& layerName, const string& layerTitle, CreateLayer createLayer)
+			LayerFactory(const string& layerName, const string& layerTitle, CreateLayer createLayer)
 			{
 				LayerDesc lDesc;
 				lDesc.name = layerName;
@@ -66,13 +66,13 @@ namespace dw
 				GetStaticLayers().push_back(lDesc);
 			}
 
-			static void CreateLayers(std::map<astring, Layer*>& layers /*, config*/);
+			static void CreateLayers(std::map<string, Layer*>& layers /*, config*/);
 
 		private:
 
 			struct LayerDesc
 			{
-				astring name; // computer readable name (unique identification)
+				string name; // computer readable name (unique identification)
 				string title; // human readable name
 				CreateLayer createLayer;
 			};
@@ -96,9 +96,9 @@ namespace dw
 		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);
 	private:
 
-		int HandleGetMapRequest(struct MHD_Connection *connection, const astring& layers, ContentType contentType, struct GetMapRequest& gmr);
+		int HandleGetMapRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, struct GetMapRequest& gmr);
 
-		std::map<astring, Layer*> availableLayers;
+		std::map<string, Layer*> availableLayers;
 	};
 
 	#define IMPLEMENT_WEBMAPSERVICE_LAYER(Class, Name, Title) \

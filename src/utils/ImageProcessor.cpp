@@ -88,7 +88,7 @@ namespace dw
 		processedData = NULL;
 	}
 
-	bool Image::SaveToPNG(const astring& filename)
+	bool Image::SaveToPNG(const string& filename)
 	{
 		assert(rawDataType == DT_U8 || rawDataType == DT_RGBA8);
 		if (utils::ConvertRawImageToContentType(*this, CT_Image_PNG))
@@ -106,7 +106,7 @@ namespace dw
 	}
 
 	template <typename srcType, typename dstType>
-	static bool SaveToPNG(const astring& filename, std::function<dstType(srcType)> convert, Image& img)
+	static bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert, Image& img)
 	{
 		assert(sizeof(srcType) == img.rawPixelSize);
 		assert(sizeof(dstType) == 4 || sizeof(dstType) == 1);
@@ -128,9 +128,9 @@ namespace dw
 	}
 
 	// specialize any combinations you want to support here
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(s16)> convert) { return dw::SaveToPNG(filename, convert, *this); }
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(s16)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
 
 	static const u8 ElevationFlag_RLE = 0xFE;
 	static const u8 ElevationFlag_RelativeBulk = 0xFF;

@@ -34,12 +34,12 @@ namespace dw
 {
 namespace Layers
 {
-	const astring LayerName = "QualityElevation";
-	const string LayerTitle = dwTEXT("ASTER + SRTMv4 High Quality Elevation Service");
+	const string LayerName = "QualityElevation";
+	const string LayerTitle = "ASTER + SRTMv4 High Quality Elevation Service";
 	const string LayerAbstract =
-		dwTEXT("The native resolution of this layer is 1 arc second per pixel.")
-		dwTEXT("A request's bounding box must not exceed 1° in width and height.")
-		dwTEXT("It will throw an InvalidBBox Service Exception otherwise.");
+		"The native resolution of this layer is 1 arc second per pixel."
+		"A request's bounding box must not exceed 1° in width and height."
+		"It will throw an InvalidBBox Service Exception otherwise.";
 
 	class QualityElevation : public WebMapService::Layer
 	{
@@ -58,8 +58,8 @@ namespace Layers
 		{
 			int longitude;
 			int latitude;
-			astring filename_dem;
-			astring filename_num;
+			string filename_dem;
+			string filename_num;
 		};
 
 		struct ASTERTileContent
@@ -74,7 +74,7 @@ namespace Layers
 			double geoTransform[6];
 		};
 
-		map<astring, OGRSpatialReference*> supportedCRS;
+		map<string, OGRSpatialReference*> supportedCRS;
 		OGRSpatialReference* ASTER_EPSG;
 		map<SrcDestTransfromId, OGRCoordinateTransformation*> srsTransforms;
 
@@ -96,8 +96,8 @@ namespace Layers
 
 			supportedCRS =
 			{
-				//pair<astring, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
-				pair<astring, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
+				//pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
+				pair<string, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
 			};
 
 			for (auto it = supportedCRS.begin(); it != supportedCRS.end(); it++)
@@ -139,7 +139,7 @@ namespace Layers
 				const auto extension = entity.path().extension();
 				if (is_regular_file(entity.status()) && extension.generic_string() == ".zip")
 				{
-					astring filepath = entity.path().string();
+					string filepath = entity.path().string();
 					int latitudeSign = 1;
 					int longitudeSign = 1;
 
@@ -191,14 +191,14 @@ namespace Layers
 					int absX = abs(x);
 					int absY = abs(y);
 
-					astring filename = ((y < 0) ? "S" : "N");
+					string filename = ((y < 0) ? "S" : "N");
 					if (absY < 10) filename += "0";
 					filename += to_string(absY) + ((x < 0) ? "W" : "E");
 					if (absX < 10) filename += "00";
 					else if (absX < 100) filename += "0";
 					filename += to_string(absX);
 
-					astring zipFilename = ASTERSourceDir.string() + "ASTGTM2_" + filename + ".zip";
+					string zipFilename = ASTERSourceDir.string() + "ASTGTM2_" + filename + ".zip";
 
 					if (fileExists.get()[(y + 90) * NumASTERTilesX + x + 180])
 					{
