@@ -1,1 +1,0 @@
-/home/rsc/Desktop/Druckwelle/src/CMakeFiles/druckwelle.dir
