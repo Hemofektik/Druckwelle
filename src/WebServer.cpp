@@ -76,7 +76,7 @@ namespace dw
 		MHD_stop_daemon(daemon);
 	}
 
-	static int HandleServiceException(struct MHD_Connection *connection, const astring& exeptionCode)
+	static int HandleServiceException(struct MHD_Connection *connection, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
@@ -89,7 +89,7 @@ namespace dw
 	int WebServer::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
 	{
 		const char* service = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "service");
-		astring serviceStr = service ? astring(service) : "";
+		string serviceStr = service ? string(service) : "";
 
 		if (wms && serviceStr == "WMS")
 		{

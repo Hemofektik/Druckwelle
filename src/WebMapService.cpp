@@ -6,8 +6,12 @@
 
 #include <microhttpd.h>
 
-#include "utils/ImageProcessor.h"
 #include "WebMapService.h"
+
+
+#include "utils/ImageProcessor.h"
+#include "utils/Capabilities.h"
+
 
 using namespace std;
 using namespace std::chrono;
@@ -18,7 +22,6 @@ static const char* wmsCapabilites =
 
 namespace dw
 {
-
 	WebMapService::WebMapService()
 	{
 	}
@@ -41,6 +44,10 @@ namespace dw
 			return -1;
 		}
 
+		WMSCapabilities caps(availableLayers);
+		cout << caps.GetXML();
+		// TODO: get whole caps string and replace current static solution
+
 #if _DEBUG
 		cout << endl << "WebMapService: example request: " << endl << "http://localhost:8282/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&BBOX=-14607737,2378356,-6201882,7104700.22959910612553358&CRS=EPSG:3857&WIDTH=1905&HEIGHT=1071&LAYERS=" << availableLayers.begin()->first << "&STYLES=&FORMAT=image/png&DPI=192&MAP_RESOLUTION=192&FORMAT_OPTIONS=dpi:192&TRANSPARENT=TRUE" << endl;
 #endif
@@ -52,7 +59,7 @@ namespace dw
 	{
 	}
 
-	void WebMapService::LayerFactory::CreateLayers(std::map<astring, Layer*>& layers /*, config*/)
+	void WebMapService::LayerFactory::CreateLayers(std::map<string, Layer*>& layers /*, config*/)
 	{
 		for each (const auto& layerDesc in LayerFactory::GetStaticLayers())
 		{
@@ -81,7 +88,7 @@ namespace dw
 		return ret;
 	}
 
-	static int HandleServiceException(struct MHD_Connection *connection, const astring& exeptionCode)
+	static int HandleServiceException(struct MHD_Connection *connection, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
@@ -91,7 +98,7 @@ namespace dw
 		return ret;
 	}
 
-	int WebMapService::HandleGetMapRequest(struct MHD_Connection *connection, const astring& layers, ContentType contentType, GetMapRequest& gmr)
+	int WebMapService::HandleGetMapRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, GetMapRequest& gmr)
 	{
 		auto availableLayer = availableLayers.find(layers); // TODO: support multiple comma separated layers (incl. alpha blended composite as result)
 		if (availableLayer == availableLayers.end())
@@ -150,7 +157,7 @@ namespace dw
 	int WebMapService::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
 	{
 		const char* request = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "request");
-		astring requestStr = request ? astring(request) : "";
+		string requestStr = request ? string(request) : "";
 
 		if (requestStr == "GetCapabilities")
 		{

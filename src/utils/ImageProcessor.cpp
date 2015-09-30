@@ -86,7 +86,7 @@ namespace dw
 		processedData = NULL;
 	}
 
-	bool Image::SaveToPNG(const astring& filename)
+	bool Image::SaveToPNG(const string& filename)
 	{
 		assert(rawDataType == DT_U8 || rawDataType == DT_RGBA8);
 		if (utils::ConvertRawImageToContentType(*this, CT_Image_PNG))
@@ -104,7 +104,7 @@ namespace dw
 	}
 
 	template <typename srcType, typename dstType>
-	static bool SaveToPNG(const astring& filename, std::function<dstType(srcType)> convert, Image& img)
+	static bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert, Image& img)
 	{
 		assert(sizeof(srcType) == img.rawPixelSize);
 		assert(sizeof(dstType) == 4 || sizeof(dstType) == 1);
@@ -126,9 +126,9 @@ namespace dw
 	}
 
 	// specialize any combinations you want to support here
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(s16)> convert) { return dw::SaveToPNG(filename, convert, *this); }
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
-	template <>	bool Image::SaveToPNG(const astring& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(s16)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(f32)> convert) { return dw::SaveToPNG(filename, convert, *this); }
+	template <>	bool Image::SaveToPNG(const string& filename, std::function<u8(f64)> convert) { return dw::SaveToPNG(filename, convert, *this); }
 
 	static const u8 ElevationFlag_RLE = 0xFE;
 	static const u8 ElevationFlag_RelativeBulk = 0xFF;
@@ -262,7 +262,7 @@ namespace dw
 
 				if (segment.flag != ElevationFlag_RLE ||
 					segment.numElements > 5 ||
-					(invalidValue.IsSet() && (segment.startValue == invalidValue.GetValue().s16[0])))
+					(invalidValue.IsSet() && (segment.startValue == invalidValue.GetValue().sint16[0])))
 				{
 					continue;
 				}
@@ -705,19 +705,19 @@ namespace dw
 			switch (src.rawDataType)
 			{
 			case DT_U8:
-				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().u8[0] : 0);
+				return SampleWithLanczosInternal<u8>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().uint8[0] : 0);
 			case DT_S16:
 #if ALLOW_AMP
-				return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().s16[0] : 0);
+				return SampleWithLanczosInternalAMP(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().sint16[0] : 0);
 #else
-				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().s16[0] : 0);
+				return SampleWithLanczosInternal<s16>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().sint16[0] : 0);
 #endif
 			case DT_U32:
-				return SampleWithLanczosInternal<u32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().u32[0] : 0);
+				return SampleWithLanczosInternal<u32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().uint32[0] : 0);
 			case DT_F32:
-				return SampleWithLanczosInternal<f32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().f32[0] : 0);
+				return SampleWithLanczosInternal<f32>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().float32[0] : 0);
 			case DT_F64:
-				return SampleWithLanczosInternal<f64>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().f64 : 0);
+				return SampleWithLanczosInternal<f64>(src, dst, transform, invalidValue.IsSet() ? invalidValue.GetValue().float64 : 0);
 			default:
 				assert(false); // requested datatype not implemented yet, sorry
 				break;
@@ -752,15 +752,15 @@ namespace dw
 			switch (img.rawDataType)
 			{
 			case DT_U8:
-				return IsImageCompletelyInvalid<u8>(img, invalidValue.GetValue().u8[0]);
+				return IsImageCompletelyInvalid<u8>(img, invalidValue.GetValue().uint8[0]);
 			case DT_S16:
-				return IsImageCompletelyInvalid<s16>(img, invalidValue.GetValue().s16[0]);
+				return IsImageCompletelyInvalid<s16>(img, invalidValue.GetValue().sint16[0]);
 			case DT_U32:
-				return IsImageCompletelyInvalid<u32>(img, invalidValue.GetValue().u32[0]);
+				return IsImageCompletelyInvalid<u32>(img, invalidValue.GetValue().uint32[0]);
 			case DT_F32:
-				return IsImageCompletelyInvalid<f32>(img, invalidValue.GetValue().f32[0]);
+				return IsImageCompletelyInvalid<f32>(img, invalidValue.GetValue().float32[0]);
 			case DT_F64:
-				return IsImageCompletelyInvalid<f64>(img, invalidValue.GetValue().f64);
+				return IsImageCompletelyInvalid<f64>(img, invalidValue.GetValue().float64);
 			default:
 				assert(false); // requested datatype not implemented yet, sorry
 				break;

@@ -52,7 +52,7 @@ namespace dw
 	{
 	}
 
-	void WebMapTileService::LayerFactory::CreateLayers(std::map<astring, Layer*>& layers /*, config*/)
+	void WebMapTileService::LayerFactory::CreateLayers(std::map<string, Layer*>& layers /*, config*/)
 	{
 		for each (const auto& layerDesc in LayerFactory::GetStaticLayers())
 		{
@@ -81,7 +81,7 @@ namespace dw
 		return ret;
 	}
 
-	static int HandleServiceException(struct MHD_Connection *connection, const astring& exeptionCode)
+	static int HandleServiceException(struct MHD_Connection *connection, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
@@ -91,7 +91,7 @@ namespace dw
 		return ret;
 	}
 
-	int WebMapTileService::HandleGetTileRequest(struct MHD_Connection *connection, const astring& layers, ContentType contentType, struct GetTileRequest& gtr)
+	int WebMapTileService::HandleGetTileRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, struct GetTileRequest& gtr)
 	{
 		auto availableLayer = availableLayers.find(layers); // TODO: support multiple comma separated layers (incl. alpha blended composite as result)
 		if (availableLayer == availableLayers.end())
@@ -149,7 +149,7 @@ namespace dw
 	int WebMapTileService::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
 	{
 		const char* request = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "request");
-		astring requestStr = request ? astring(request) : "";
+		string requestStr = request ? string(request) : "";
 
 		if (requestStr == "GetCapabilities")
 		{

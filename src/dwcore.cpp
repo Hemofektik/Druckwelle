@@ -9,7 +9,7 @@ using namespace cpplinq;
 
 namespace dw
 {
-	map<astring, ContentType> ContentTypeIdMapping;
+	map<string, ContentType> ContentTypeIdMapping;
 
 	struct InitStaticCore
 	{
@@ -23,7 +23,7 @@ namespace dw
 
 	} staticRunCtor;
 
-	ContentType GetContentType(const astring& contentTypeId)
+	ContentType GetContentType(const string& contentTypeId)
 	{
 		auto availableContentType = ContentTypeIdMapping.find(contentTypeId);
 		if (availableContentType == ContentTypeIdMapping.end())

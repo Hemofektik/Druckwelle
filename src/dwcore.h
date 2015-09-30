@@ -6,11 +6,9 @@
 
 namespace dw
 {
-	typedef wchar_t			char_t;
+	typedef char			char_t;
 
-	typedef std::string		astring;
-	typedef std::wstring	string;
-	#define dwTEXT(t)		L ## t
+	typedef std::string		string; // used to store UTF-8 strings
 
 	typedef int8_t			s8;
 	typedef int16_t			s16;
@@ -40,7 +38,7 @@ namespace dw
 		CT_NumContentTypes // must be last entry
 	};
 
-	const astring ContentTypeId[] = 
+	const string ContentTypeId[] = 
 	{
 		"unknown",
 		"image/png",
@@ -76,6 +74,12 @@ namespace dw
 		sizeof(f64),
 	};
 
+	enum ServiceType
+	{
+		WMS,
+		WMTS
+	};
+
 	struct BBox
 	{
 		double minX;
@@ -87,6 +91,6 @@ namespace dw
 		double GetHeight() const { return maxY - minY; }
 	};
 
-	ContentType GetContentType(const astring& contentTypeId);
+	ContentType GetContentType(const string& contentTypeId);
 	DataType FindCompatibleDataType(ContentType contentType, const std::vector<DataType>& availableDataTypes);
 }

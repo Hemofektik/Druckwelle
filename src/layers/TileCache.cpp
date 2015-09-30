@@ -87,18 +87,23 @@ namespace dw
 
 			struct TileCacheDescription
 			{
-				astring id;
+				string id;
 				string title;
 				string abstract;
 
-				astring srcHost;
+				string srcHost;
 				u16 srcPort;
-				astring srcLayerName;
-				astring storagePath;
-				astring fileExtension;
+				string srcLayerName;
+				string storagePath;
+				string fileExtension;
 
 				u32 tileWidth;
 				u32 tileHeight;
+				u32 tilePaddingLeft;
+				u32 tilePaddingTop;
+				u32 tilePaddingRight;
+				u32 tilePaddingBottom;
+
 				ContentType srcContentType;
 				ContentType cachedContentType;
 				DataType dataType;
@@ -134,8 +139,8 @@ namespace dw
 				const s16 InvalidValueASTER = -9999;
 
 				desc.id = "Tile Cache";
-				desc.title = dwTEXT("Tile Cache");
-				desc.abstract = dwTEXT("");
+				desc.title = "Tile Cache";
+				desc.abstract = "";
 
 				desc.srcHost = "localhost";
 				desc.srcPort = 8282; 
@@ -143,8 +148,17 @@ namespace dw
 				desc.storagePath = "D:/QECache";
 				desc.fileExtension = ".elv";
 
-				desc.tileWidth = 2048;
-				desc.tileHeight = 2048;
+				const u32 TileQuadCount = 16;
+				const u32 MaxTesselationFactor = 32;
+				const u32 Padding = MaxTesselationFactor / 2;
+
+				desc.tileWidth = TileQuadCount * MaxTesselationFactor;
+				desc.tileHeight = desc.tileWidth;
+				desc.tilePaddingLeft = Padding;
+				desc.tilePaddingTop = Padding;
+				desc.tilePaddingRight = Padding;
+				desc.tilePaddingBottom = Padding;
+
 				desc.srcContentType = CT_Image_Raw_S16;
 				desc.cachedContentType = CT_Image_Elevation;
 				desc.dataType = DT_S16;
@@ -201,10 +215,10 @@ namespace dw
 				return true;
 			}
 
-			astring CreateZeroPaddedString(int number, u32 numberOfDigits)
+			string CreateZeroPaddedString(int number, u32 numberOfDigits)
 			{
-				astring str = "";
-				astring strEnd = to_string(number);
+				string str = "";
+				string strEnd = to_string(number);
 				for (int d = 0; d < numberOfDigits - (int)strEnd.length(); d++)
 				{
 					str.push_back('0');
@@ -217,8 +231,8 @@ namespace dw
 			{
 				path path = desc.storagePath;
 
-				astring levelString = CreateZeroPaddedString(level, desc.numLevelDigits);
-				astring yString = CreateZeroPaddedString(y, desc.numYDigits);
+				string levelString = CreateZeroPaddedString(level, desc.numLevelDigits);
+				string yString = CreateZeroPaddedString(y, desc.numYDigits);
 
 				path = path.append(levelString).append(yString);
 
@@ -231,9 +245,9 @@ namespace dw
 					return false;
 				}
 
-				astring xString = CreateZeroPaddedString(x, desc.numXDigits);
+				string xString = CreateZeroPaddedString(x, desc.numXDigits);
 
-				astring filename = xString + desc.fileExtension;
+				string filename = xString + desc.fileExtension;
 				path = path.append(filename);
 
 				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
@@ -260,6 +274,10 @@ namespace dw
 
 				const double TileWidthInDegree = (360.0 / desc.numTilesX);
 				const double TileHeightInDegree = (180.0 / desc.numTilesY);
+				const double TilePaddingLeftInDegree = TileWidthInDegree * (desc.tilePaddingLeft / (double)desc.tileWidth);
+				const double TilePaddingRightInDegree = TileWidthInDegree * (desc.tilePaddingRight / (double)desc.tileWidth);
+				const double TilePaddingTopInDegree = TileHeightInDegree * (desc.tilePaddingTop / (double)desc.tileHeight);
+				const double TilePaddingBottomInDegree = TileHeightInDegree * (desc.tilePaddingBottom / (double)desc.tileHeight);
 
 				bool runCacheCreation = true;
 				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
@@ -271,15 +289,15 @@ namespace dw
 							continue;
 						}
 
-						astring tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
+						string tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
 						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
 						tileRequestUri += "&HEIGHT=" + to_string(desc.tileHeight);
 						tileRequestUri += "&FORMAT=" + ContentTypeId[desc.srcContentType];
 
-						const double left = (x / (double)desc.numTilesX) * 360.0 - 180.0;
-						const double top = -(y / (double)desc.numTilesY) * 180.0 + 90.0;
-						const double right = left + TileWidthInDegree;
-						const double bottom = top - TileHeightInDegree;
+						const double left = (x / (double)desc.numTilesX) * 360.0 - 180.0 - TilePaddingLeftInDegree;
+						const double top = -(y / (double)desc.numTilesY) * 180.0 + 90.0 + TilePaddingTopInDegree;
+						const double right = left + TileWidthInDegree + TilePaddingRightInDegree;
+						const double bottom = top - TileHeightInDegree - TilePaddingBottomInDegree;
 
 						tileRequestUri += "&BBOX=" + to_string(left) + "," + to_string(bottom) + "," + to_string(right) + "," + to_string(top);
 
@@ -331,6 +349,6 @@ namespace dw
 			}
 		};
 
-		IMPLEMENT_WEBMAPTILESERVICE_LAYER(TileCache, "TileCache", dwTEXT("Can become a tile cache for any WMS layer"));
+		IMPLEMENT_WEBMAPTILESERVICE_LAYER(TileCache, "TileCache", "Can become a tile cache for any WMS layer");
 	}
 }

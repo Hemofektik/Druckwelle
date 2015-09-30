@@ -40,21 +40,24 @@ include_directories(
 	${GDAL_INCLUDE_DIR}
 )
 
-link_libraries (
 if(MSVC)
+link_libraries (	
 	${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
 	${CMAKE_SOURCE_DIR}/lib/gsl.lib
 	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
+	optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
-else()
-	${GDAL_LIBRARY}
-endif()
+	debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
 )
-
+else()
+link_libraries (	
+	${GDAL_LIBRARY}
+)
+endif()
 
 
 add_executable (

@@ -11,8 +11,8 @@ namespace dw
 {
 namespace Layers
 {
-	const astring LayerName = "ExampleLayer";
-	const string LayerTitle = dwTEXT("Example Layer showing how to implement the basics for your own layer");
+	const string LayerName = "ExampleLayer";
+	const string LayerTitle = "Example Layer showing how to implement the basics for your own layer";
 
 	class CircleTestLayer : public WebMapService::Layer
 	{

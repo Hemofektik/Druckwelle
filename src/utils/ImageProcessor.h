@@ -28,12 +28,12 @@ namespace dw
 		~Image();
 
 		void FreeProcessedData();
-		bool SaveToPNG(const astring& filename);
+		bool SaveToPNG(const string& filename);
 
 		// srcType must be of same size as the DataType given in the ctor of this image
 		// dstType must be either one or four bytes wide (greyscale or rgba)
 		template <typename srcType, typename dstType>
-		bool SaveToPNG(const astring& filename, std::function<dstType(srcType)> convert);
+		bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert);
 	};
 
 	namespace utils
