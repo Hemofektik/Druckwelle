@@ -30,6 +30,7 @@ else()
 	add_definitions( -DALLOW_AMP=0 )
 
 	find_package(GDAL)
+	find_package(Boost COMPONENTS system filesystem REQUIRED)
 endif()
 
 include_directories(
@@ -41,7 +42,7 @@ include_directories(
 )
 
 if(MSVC)
-link_libraries (	
+link_libraries (
 	${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
 	${CMAKE_SOURCE_DIR}/lib/gsl.lib
@@ -54,8 +55,14 @@ link_libraries (
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
 )
 else()
-link_libraries (	
+link_libraries (
 	${GDAL_LIBRARY}
+	${Boost_FILESYSTEM_LIBRARY}
+	${Boost_SYSTEM_LIBRARY}
+	microhttpd
+	PocoFoundation
+	PocoNet
+	PocoXML
 )
 endif()
 
