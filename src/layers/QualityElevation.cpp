@@ -1,10 +1,4 @@
 
-#if HAS_FILE_SYSTEM
-#include <filesystem>
-#else
-#include <boost/filesystem.hpp>
-#endif
-
 #include <vector>
 #include <mutex>
 #include <iostream>
@@ -27,14 +21,10 @@
 
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
+#include "../utils/Filesystem.h"
 
 using namespace std;
 using namespace std::chrono;
-#if HAS_FILE_SYSTEM
-using namespace std::experimental::filesystem::v1;
-#else
-using namespace boost::filesystem;
-#endif
 
 using namespace ZFXMath;
 
@@ -144,7 +134,7 @@ namespace Layers
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
 			asterTileStartLatitude = 90;
 			asterTileEndLatitude = -90;
-			for (directory_iterator di(ASTERSourceDir); di != end(di); di++)
+			for (directory_iterator di(ASTERSourceDir); di != fsend(di); di++)
 			{
 				const auto& entity = *di;
 				const auto extension = entity.path().extension();
@@ -292,12 +282,12 @@ namespace Layers
 		{
 			delete[] asterTiles;
 
-			for each (auto crs in supportedCRS)
+			for (auto crs : supportedCRS)
 			{
 				OGRSpatialReference::DestroySpatialReference(crs.second);
 			}
 
-			for each (auto trans in srsTransforms)
+			for (auto trans : srsTransforms)
 			{
 				OGRCoordinateTransformation::DestroyCT(trans.second);
 			}
@@ -313,6 +303,7 @@ namespace Layers
 		{
 			GDALDataset* demDS = NULL;
 			//GDALDataset* numDS = NULL;
+			GDALRasterBand* demRasterBand = NULL;
 
 			demDS = (GDALDataset*)GDALOpen(tile->filename_dem.c_str(), GA_ReadOnly);
 			if (!demDS) goto err;
@@ -322,7 +313,7 @@ namespace Layers
 
 			if (demDS->GetGeoTransform(content.geoTransform) != CE_None) goto err;
 
-			auto demRasterBand = demDS->GetRasterBand(1);
+			demRasterBand = demDS->GetRasterBand(1);
 			if (!demRasterBand || demRasterBand->GetRasterDataType() != GDT_Int16) goto err;
 
 			content.width = demRasterBand->GetXSize();
@@ -407,8 +398,7 @@ namespace Layers
 			Image elevation(numPixelsX, numPixelsY, DT_S16);
 
 			const s16 InvalidValueASTER = -9999;
-			static_assert(sizeof(wchar_t) == sizeof(s16), "Need explicit two byte memset");
-			wmemset((wchar_t*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
+			SetAlignedMemory((s16*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
 
 			HandleGetMapRequestResult result = HGMRR_OK;
 			const int numTiles = (int)asterTilesTouched.size();

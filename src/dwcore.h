@@ -93,4 +93,15 @@ namespace dw
 
 	ContentType GetContentType(const string& contentTypeId);
 	DataType FindCompatibleDataType(ContentType contentType, const std::vector<DataType>& availableDataTypes);
+
+	template<typename T>
+	void SetAlignedMemory(T* dest, T value, size count)
+    {
+    	const T* end = dest + count;
+    	while(dest < end)
+    	{
+    		*dest = value;
+    		dest++;
+    	}
+    }
 }

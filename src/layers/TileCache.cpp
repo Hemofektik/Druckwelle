@@ -10,14 +10,14 @@
 #include <ostream>
 #include <sstream>
 #include <fstream>
-#include <filesystem>
+
+#include "../utils/Filesystem.h"
 
 #include <thread>
 
 #include <ZFXMath.h>
 
 using namespace std;
-using namespace std::experimental::filesystem::v1;
 using namespace ZFXMath;
 
 using Poco::Net::HTTPClientSession;
@@ -197,7 +197,7 @@ namespace dw
 
 					int y = atoi(entity.path().filename().generic_string().c_str());
 
-					for (directory_iterator fi(entity.path()); fi != end(fi); fi++)
+					for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
 					{
 						const auto& fileEntity = *fi;
 						const auto extension = fileEntity.path().extension();
