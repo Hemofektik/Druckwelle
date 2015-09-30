@@ -12,9 +12,9 @@ Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++
  * Example Layer (showing how to implement the basics for your own layer)
  * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v4.1 (3 arc seconds))
 
+---
 
-
-## Requirements ##
+## Build Requirements ##
 
  * CMake 2.8
  * Visual Studio 2015 (Windows only)
@@ -25,11 +25,16 @@ Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++
  * run CreateProjectFiles.bat
  * open Visual Studio Solution from sln directory and build
 
-## Linux/OSX ##
+## Linux / OSX ##
 
  * download Poco Libraries Basic Edition (http://pocoproject.org/), compile, and install
- * install libmicrohttpd-dev
- * install libgdal-dev
-
+ * install package libmicrohttpd-dev
+ * install package libgdal-dev
  * cmake -G "Unix Makefile"
  * make
+
+---
+
+## License ##
+
+This is free and unencumbered software released into the public domain. See UNLICENSE file for details.
