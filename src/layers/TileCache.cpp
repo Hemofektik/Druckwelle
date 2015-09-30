@@ -75,7 +75,7 @@ namespace dw
 
 				createTileCacheThread = new thread([this] { CreateTileCacheAsync(); });
 
-				return true; 
+				return true;
 			};
 
 			virtual HandleGetTileRequestResult HandleGetTileRequest(const WebMapTileService::GetTileRequest& gmr, Image& img) override
@@ -143,9 +143,10 @@ namespace dw
 				desc.abstract = "";
 
 				desc.srcHost = "localhost";
-				desc.srcPort = 8282; 
+				desc.srcPort = 8282;
 				desc.srcLayerName = "QualityElevation";
-				desc.storagePath = "D:/QECache";
+				//desc.storagePath = "D:/QECache";
+				desc.storagePath = "/home/rsc/Desktop/QECache";
 				desc.fileExtension = ".elv";
 
 				const u32 TileQuadCount = 16;
@@ -186,30 +187,33 @@ namespace dw
 					return false;
 				}
 
-				topLevelPath.append(CreateZeroPaddedString(desc.numLevels - 1, desc.numLevelDigits));
+				topLevelPath /= CreateZeroPaddedString(desc.numLevels - 1, desc.numLevelDigits);
 
 				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
 				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
-				for (directory_iterator di(topLevelPath); di != end(di); di++)
+				if(exists(topLevelPath))
 				{
-					const auto& entity = *di;
-					if (!is_directory(entity.status())) continue;
+                    for (directory_iterator di(topLevelPath); di != fsend(di); di++)
+                    {
+                        const auto& entity = *di;
+                        if (!is_directory(entity.status())) continue;
 
-					int y = atoi(entity.path().filename().generic_string().c_str());
+                        int y = atoi(entity.path().filename().generic_string().c_str());
 
-					for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
-					{
-						const auto& fileEntity = *fi;
-						const auto extension = fileEntity.path().extension();
-						if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
-						{
-							int x = atoi(fileEntity.path().filename().generic_string().c_str());
+                        for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
+                        {
+                            const auto& fileEntity = *fi;
+                            const auto extension = fileEntity.path().extension();
+                            if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
+                            {
+                                int x = atoi(fileEntity.path().filename().generic_string().c_str());
 
-							auto fileSize = file_size(fileEntity.path());
+                                auto fileSize = file_size(fileEntity.path());
 
-							fileStatus.get()[y * desc.numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
-						}
-					}
+                                fileStatus.get()[y * desc.numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
+                            }
+                        }
+                    }
 				}
 
 				return true;
@@ -234,7 +238,8 @@ namespace dw
 				string levelString = CreateZeroPaddedString(level, desc.numLevelDigits);
 				string yString = CreateZeroPaddedString(y, desc.numYDigits);
 
-				path = path.append(levelString).append(yString);
+				path /= levelString;
+				path /= yString;
 
 				error_code err;
 				create_directories(path, err);
@@ -248,7 +253,7 @@ namespace dw
 				string xString = CreateZeroPaddedString(x, desc.numXDigits);
 
 				string filename = xString + desc.fileExtension;
-				path = path.append(filename);
+				path /= filename;
 
 				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
 				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);

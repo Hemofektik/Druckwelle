@@ -4,6 +4,7 @@
 #include <vector>
 #include <cstdlib>
 
+
 namespace dw
 {
 	typedef char			char_t;
@@ -38,7 +39,7 @@ namespace dw
 		CT_NumContentTypes // must be last entry
 	};
 
-	const string ContentTypeId[] = 
+	const string ContentTypeId[] =
 	{
 		"unknown",
 		"image/png",

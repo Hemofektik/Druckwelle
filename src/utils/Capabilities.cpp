@@ -43,22 +43,25 @@ namespace dw
 	{
 	}
 
+	template<>
 	const string& ServiceCapabilities<WMS, WebMapService::Layer>::GetXML() const
 	{
 		return xml;
 	}
+
+	template<>
 	const string& ServiceCapabilities<WMTS, WebMapTileService::Layer>::GetXML() const
 	{
 		return xml;
 	}
 
 	WMSCapabilities::WMSCapabilities(const std::map<string, WebMapService::Layer*>& availableLayers) 
-		: ServiceCapabilities(availableLayers)
+		: ServiceCapabilities<WMS, WebMapService::Layer>(availableLayers)
 	{
 	}
 
 	WMTSCapabilities::WMTSCapabilities(const std::map<string, WebMapTileService::Layer*>& availableLayers)
-		: ServiceCapabilities(availableLayers)
+		: ServiceCapabilities<WMTS, WebMapTileService::Layer>(availableLayers)
 	{
 	}
 }

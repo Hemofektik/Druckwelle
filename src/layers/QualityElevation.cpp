@@ -128,7 +128,8 @@ namespace Layers
 			// load TOC from disk
 			//const path ASTERSourceDir("Z:/InnovationLab/ASTER/");
 			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
-			const path ASTERSourceDir("D:/ASTER/");
+			//const path ASTERSourceDir("D:/ASTER/");
+			const path ASTERSourceDir("/home/rsc/Desktop/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
@@ -180,7 +181,6 @@ namespace Layers
 			}
 
 			asterTiles = new ASTERTile[NumASTERTilesX * NumASTERTilesY];
-			memset(asterTiles, 0, sizeof(ASTERTile) * NumASTERTilesX * NumASTERTilesY);
 			for (int y = asterTileStartLatitude; y <= asterTileEndLatitude; y++)
 			{
 				for (int x = AsterTileStartLongitude; x <= AsterTileEndLongitude; x++)
@@ -228,8 +228,8 @@ namespace Layers
 		}
 
 		virtual const char_t* GetAbstract()  const override
-		{ 
-			return LayerAbstract.c_str(); 
+		{
+			return LayerAbstract.c_str();
 		};
 
 		virtual const vector<DataType>& GetSuppordetFormats() const override
@@ -382,7 +382,7 @@ namespace Layers
 			const int MaxNumAsterTilesX = 4;
 			const int MaxNumAsterTilesY = 4;
 
-			vector<ASTERTile*> asterTilesTouched; 
+			vector<ASTERTile*> asterTilesTouched;
 			asterTilesTouched.reserve(MaxNumAsterTilesX * MaxNumAsterTilesY);
 			int asterStartX, asterStartY, numAsterTilesX, numAsterTilesY;
 			GetASTERTiles(asterTilesTouched, extendedAsterBBox, asterStartX, asterStartY, numAsterTilesX, numAsterTilesY);
@@ -394,7 +394,7 @@ namespace Layers
 
 			const int numPixelsX = numAsterTilesX * AsterPixelsPerDegree + 1;
 			const int numPixelsY = numAsterTilesY * AsterPixelsPerDegree + 1;
-			
+
 			Image elevation(numPixelsX, numPixelsY, DT_S16);
 
 			const s16 InvalidValueASTER = -9999;
@@ -460,7 +460,7 @@ namespace Layers
 		}
 
 		bool TransformBBox(
-			const BBox& srcBBox, BBox& dstBBox, 
+			const BBox& srcBBox, BBox& dstBBox,
 			const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const
 		{
 			bool success = true;
@@ -510,7 +510,7 @@ namespace Layers
 		{
 			startX = (int)floor(asterBBox.minX) - AsterTileStartLongitude;
 			startY = (int)floor(asterBBox.minY) - asterTileStartLatitude;
-			int endX = (int)floor(asterBBox.maxX - 0.000001) - AsterTileStartLongitude; // we fudge the max values because each 
+			int endX = (int)floor(asterBBox.maxX - 0.000001) - AsterTileStartLongitude; // we fudge the max values because each
 			int endY = (int)floor(asterBBox.maxY - 0.000001) - asterTileStartLatitude; // tile overlaps by one pixel with next tile
 
 			numTilesX = endX - startX + 1;

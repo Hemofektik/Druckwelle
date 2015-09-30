@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <chrono>
 
+#include <string.h>
 #include <microhttpd.h>
 
 #include "WebMapService.h"
@@ -61,7 +62,7 @@ namespace dw
 
 	void WebMapService::LayerFactory::CreateLayers(std::map<string, Layer*>& layers /*, config*/)
 	{
-		for each (const auto& layerDesc in LayerFactory::GetStaticLayers())
+		for (const auto& layerDesc : LayerFactory::GetStaticLayers())
 		{
 			Layer* newLayer = layerDesc.createLayer();
 
