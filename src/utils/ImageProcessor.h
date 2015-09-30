@@ -54,12 +54,12 @@ namespace dw
 		public:
 			union Value
 			{
-				u8		u8[8];
-				u16		u16[4];
-				s16		s16[4];
-				u32		u32[2];
-				float	f32[2];
-				double	f64;
+				u8		uint8[8];
+				u16		uint16[4];
+				s16		sint16[4];
+				u32		uint32[2];
+				f32		float32[2];
+				f64		float64;
 			};
 
 
@@ -71,32 +71,37 @@ namespace dw
 
 			InvalidValue()
 			{
-				value.f64 = 0.0;
+				value.float64 = 0.0;
 				isSet = false;
 			}
 			InvalidValue(u8 invalidValue)
 			{
-				value.u8[0] = invalidValue;
+				value.uint8[0] = invalidValue;
 				isSet = true;
 			}
 			InvalidValue(u16 invalidValue)
 			{
-				value.u16[0] = invalidValue;
+				value.uint16[0] = invalidValue;
 				isSet = true;
 			}
 			InvalidValue(s16 invalidValue)
 			{
-				value.s16[0] = invalidValue;
+				value.sint16[0] = invalidValue;
 				isSet = true;
 			}
 			InvalidValue(u32 invalidValue)
 			{
-				value.u32[0] = invalidValue;
+				value.uint32[0] = invalidValue;
+				isSet = true;
+			}
+			InvalidValue(f32 invalidValue)
+			{
+				value.float32[0] = invalidValue;
 				isSet = true;
 			}
 			InvalidValue(f64 invalidValue)
 			{
-				value.f64 = invalidValue;
+				value.float64 = invalidValue;
 				isSet = true;
 			}
 

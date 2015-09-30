@@ -29,7 +29,9 @@
 #ifndef	_ZFXMATH_INCLUDE_ZFXMATH_H_
 #define	_ZFXMATH_INCLUDE_ZFXMATH_H_
 
+#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN
+#endif
 
 #include "ZFXTypes.h"
 

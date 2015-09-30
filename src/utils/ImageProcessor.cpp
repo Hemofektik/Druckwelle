@@ -1,6 +1,4 @@
 
-#define ALLOW_AMP 1
-
 #if ALLOW_AMP
 #include <amp.h>
 #include <amp_graphics.h>

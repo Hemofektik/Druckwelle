@@ -1,4 +1,10 @@
+
+#if HAS_FILE_SYSTEM
 #include <filesystem>
+#else
+#include <boost/filesystem.hpp>
+#endif
+
 #include <vector>
 #include <mutex>
 #include <iostream>
@@ -24,7 +30,12 @@
 
 using namespace std;
 using namespace std::chrono;
+#if HAS_FILE_SYSTEM
 using namespace std::experimental::filesystem::v1;
+#else
+using namespace boost::filesystem;
+#endif
+
 using namespace ZFXMath;
 
 using namespace dw;

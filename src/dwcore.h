@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <cstdlib>
 
 namespace dw
 {
@@ -9,7 +10,7 @@ namespace dw
 
 	typedef std::string		astring;
 	typedef std::wstring	string;
-	#define dwTEXT(t)		L##t
+	#define dwTEXT(t)		L ## t
 
 	typedef int8_t			s8;
 	typedef int16_t			s16;
@@ -20,7 +21,7 @@ namespace dw
 	typedef uint32_t		u32;
 	typedef uint64_t		u64;
 
-	typedef size_t			size;
+	typedef std::size_t		size;
 
 	typedef float			f32;
 	typedef double			f64;

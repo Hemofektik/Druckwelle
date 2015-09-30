@@ -11,12 +11,12 @@
 #ifndef _ZFXMATH_INCLUDE_MEMORY_H_
 #define _ZFXMATH_INCLUDE_MEMORY_H_
 
-#include "types.h"
-
 #undef ZeroMemory
 #undef FillMemory
 #undef CopyMemory
 #undef MoveMemory
+
+#include <stdint.h>
 
 namespace ZFXMath
 {
@@ -33,17 +33,17 @@ namespace ZFXMath
 	/// \param count [in] size in bytes
 	/// \param character [in] value
 	/// \endif
-    inline void FillMemory(void *dest, unsigned __int32 count, unsigned __int8 character)
+    inline void FillMemory(void *dest, uint32_t count, uint8_t character)
     {
-        unsigned __int32 size32  = count >> 2;
-        unsigned __int32 fill    = (character << 24 | character << 16 | character << 8 | character);
-        unsigned __int32 *dest32 = (unsigned __int32*)dest;
+        uint32_t size32  = count >> 2;
+        uint32_t fill    = (character << 24 | character << 16 | character << 8 | character);
+        uint32_t *dest32 = (uint32_t*)dest;
 
         switch ((count - (size32 << 2)))
         {
-            case 3: ((unsigned __int8*)dest)[count - 3] = character;
-            case 2: ((unsigned __int8*)dest)[count - 2] = character;
-            case 1: ((unsigned __int8*)dest)[count - 1] = character;
+            case 3: ((uint8_t*)dest)[count - 3] = character;
+            case 2: ((uint8_t*)dest)[count - 2] = character;
+            case 1: ((uint8_t*)dest)[count - 1] = character;
         }
 
         while (size32-- > 0)
@@ -61,7 +61,7 @@ namespace ZFXMath
 	/// \param dest [in] destination
 	/// \param count [in] size in bytes
 	/// \endif
-	inline void ZeroMemory(void *dest, unsigned __int32 count)
+	inline void ZeroMemory(void *dest, uint32_t count)
 	{
 		FillMemory(dest,count,0);
 	}
@@ -79,17 +79,17 @@ namespace ZFXMath
 	/// \param src [in] source
 	/// \param count [in] size in bytes
 	/// \endif
-    inline void CopyMemory(void *dest, const void *src, unsigned __int32 count)
+    inline void CopyMemory(void *dest, const void *src, uint32_t count)
     {
-        unsigned __int32    size32    = count >> 2;
-        unsigned __int32    *dest32   = (unsigned __int32*)dest;
-        unsigned __int32    *src32    = (unsigned __int32*)src;
+        uint32_t    size32    = count >> 2;
+        uint32_t    *dest32   = (uint32_t*)dest;
+        uint32_t    *src32    = (uint32_t*)src;
 
         switch ((count - (size32 << 2)))
         {
-            case 3: ((unsigned __int8*)dest)[count - 3] = ((unsigned __int8*)src)[count - 3];
-            case 2: ((unsigned __int8*)dest)[count - 2] = ((unsigned __int8*)src)[count - 2];
-            case 1: ((unsigned __int8*)dest)[count - 1] = ((unsigned __int8*)src)[count - 1];
+            case 3: ((uint8_t*)dest)[count - 3] = ((uint8_t*)src)[count - 3];
+            case 2: ((uint8_t*)dest)[count - 2] = ((uint8_t*)src)[count - 2];
+            case 1: ((uint8_t*)dest)[count - 1] = ((uint8_t*)src)[count - 1];
         }
 
         while (size32-- > 0)
@@ -109,29 +109,29 @@ namespace ZFXMath
 	/// \param src [in] source
 	/// \param count [in] size in bytes
 	/// \endif
-    inline void MoveMemory(void *dest, const void *src, unsigned __int32 count)
+    inline void MoveMemory(void *dest, const void *src, uint32_t count)
     {
-        unsigned __int32    size32    = count >> 2;
-        unsigned __int32    *dest32   = (unsigned __int32*)dest;
-        unsigned __int32    *src32    = (unsigned __int32*)src;
+        uint32_t    size32    = count >> 2;
+        uint32_t    *dest32   = (uint32_t*)dest;
+        uint32_t    *src32    = (uint32_t*)src;
 
         if (dest > src)
         {
             switch ((count - (size32 << 2)))
             {
                 case 3:
-                ((unsigned __int8*)dest)[count - 1] = ((unsigned __int8*)src)[count - 1];
-                ((unsigned __int8*)dest)[count - 2] = ((unsigned __int8*)src)[count - 2];
-                ((unsigned __int8*)dest)[count - 3] = ((unsigned __int8*)src)[count - 3];
+                ((uint8_t*)dest)[count - 1] = ((uint8_t*)src)[count - 1];
+                ((uint8_t*)dest)[count - 2] = ((uint8_t*)src)[count - 2];
+                ((uint8_t*)dest)[count - 3] = ((uint8_t*)src)[count - 3];
                 break;
 
                 case 2:
-                ((unsigned __int8*)dest)[count - 1] = ((unsigned __int8*)src)[count - 1];
-                ((unsigned __int8*)dest)[count - 2] = ((unsigned __int8*)src)[count - 2];
+                ((uint8_t*)dest)[count - 1] = ((uint8_t*)src)[count - 1];
+                ((uint8_t*)dest)[count - 2] = ((uint8_t*)src)[count - 2];
                 break;
 
                 case 1:
-                ((unsigned __int8*)dest)[count - 1] = ((unsigned __int8*)src)[count - 1];
+                ((uint8_t*)dest)[count - 1] = ((uint8_t*)src)[count - 1];
                 break;
             }
 

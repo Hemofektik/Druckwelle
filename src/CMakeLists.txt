@@ -22,6 +22,14 @@ if(MSVC)
 
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /openmp")
+
+	add_definitions( -DHAS_FILE_SYSTEM=1 )
+	add_definitions( -DALLOW_AMP=1 )
+else()
+	add_definitions( -DHAS_FILE_SYSTEM=0 )
+	add_definitions( -DALLOW_AMP=0 )
+
+	find_package(GDAL)
 endif()
 
 include_directories(
@@ -29,9 +37,11 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/cpplinq
 	${CMAKE_SOURCE_DIR}/3rdparty/stb
 	${CMAKE_SOURCE_DIR}/3rdparty/ZFXMath/include
+	${GDAL_INCLUDE_DIR}
 )
 
-link_libraries (	
+link_libraries (
+if(MSVC)
 	${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
 	${CMAKE_SOURCE_DIR}/lib/gsl.lib
@@ -40,6 +50,9 @@ link_libraries (
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
 	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
+else()
+	${GDAL_LIBRARY}
+endif()
 )
 
 

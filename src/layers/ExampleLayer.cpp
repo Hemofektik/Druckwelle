@@ -2,6 +2,9 @@
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
 
+#include <math.h>
+#include <string.h>
+
 using namespace std;
 
 namespace dw
