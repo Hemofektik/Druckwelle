@@ -1,6 +1,9 @@
 # Druckwelle #
 
 Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++
+Aiming to serve geo raster data beyond the WMS/WMTS specification like RAW data or custom formats.
+
+Druckwelle does not feature a full implementation of WMS/WMTS Specifications.
 
 ### Features ###
 
