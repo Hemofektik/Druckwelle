@@ -145,15 +145,15 @@ namespace dw
 				desc.srcHost = "localhost";
 				desc.srcPort = 8282;
 				desc.srcLayerName = "QualityElevation";
-				//desc.storagePath = "D:/QECache";
-				desc.storagePath = "/home/rsc/Desktop/QECache";
+				desc.storagePath = "D:/QECache";
+				//desc.storagePath = "/home/rsc/Desktop/QECache";
 				desc.fileExtension = ".elv";
 
-				const u32 TileQuadCount = 16;
-				const u32 MaxTesselationFactor = 32;
-				const u32 Padding = MaxTesselationFactor / 2;
+				//const u32 TileQuadCount = 16;
+				//const u32 MaxTesselationFactor = 32;
+				const u32 Padding = 0;//MaxTesselationFactor / 2;
 
-				desc.tileWidth = TileQuadCount * MaxTesselationFactor;
+				desc.tileWidth = 2048; // TileQuadCount * MaxTesselationFactor;
 				desc.tileHeight = desc.tileWidth;
 				desc.tilePaddingLeft = Padding;
 				desc.tilePaddingTop = Padding;
@@ -274,8 +274,6 @@ namespace dw
 			void CreateTileCacheAsync()
 			{
 				Image emptyTile(0, 0, desc.dataType);
-				Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
-				const size expectedTileSize = tileImg.rawDataSize;
 
 				const double TileWidthInDegree = (360.0 / desc.numTilesX);
 				const double TileHeightInDegree = (180.0 / desc.numTilesY);
@@ -285,14 +283,24 @@ namespace dw
 				const double TilePaddingBottomInDegree = TileHeightInDegree * (desc.tilePaddingBottom / (double)desc.tileHeight);
 
 				bool runCacheCreation = true;
+				
 				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
 				{
+					#pragma omp parallel for
 					for (int x = 0; x < desc.numTilesX; x++)
 					{
+						if (!runCacheCreation)
+						{
+							break;
+						}
+
 						if (fileStatus.get()[y * desc.numTilesX + x] != FileStatus_Missing)
 						{
 							continue;
 						}
+
+						Image tileImg(desc.tileWidth, desc.tileHeight, desc.dataType);
+						const size expectedTileSize = tileImg.rawDataSize;
 
 						string tileRequestUri = "/?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&CRS=EPSG:4326&LAYERS=" + desc.srcLayerName + "&STYLES=";
 						tileRequestUri += "&WIDTH=" + to_string(desc.tileWidth);
