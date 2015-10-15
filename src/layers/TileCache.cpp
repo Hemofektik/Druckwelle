@@ -259,9 +259,17 @@ namespace dw
 				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);
 				if (file.is_open())
 				{
-					file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
+					try
+					{
+						file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
+					}
+					catch (...) 
+					{
+						std::cout << "Tile Cache Error: writing to file failed" << std::endl;
+						return false;
+					}
 				}
-				else if(file.bad())
+				else if(file.fail())
 				{
 					cout << "Tile Cache Error: Creating File Failed: " << path << endl;
 					return false;
@@ -282,18 +290,11 @@ namespace dw
 				const double TilePaddingTopInDegree = TileHeightInDegree * (desc.tilePaddingTop / (double)desc.tileHeight);
 				const double TilePaddingBottomInDegree = TileHeightInDegree * (desc.tilePaddingBottom / (double)desc.tileHeight);
 
-				bool runCacheCreation = true;
-				
-				for (int y = 0; y < desc.numTilesY && runCacheCreation; y++)
+				for (int y = 0; y < desc.numTilesY; y++)
 				{
 					#pragma omp parallel for
 					for (int x = 0; x < desc.numTilesX; x++)
 					{
-						if (!runCacheCreation)
-						{
-							break;
-						}
-
 						if (fileStatus.get()[y * desc.numTilesX + x] != FileStatus_Missing)
 						{
 							continue;
@@ -314,49 +315,68 @@ namespace dw
 
 						tileRequestUri += "&BBOX=" + to_string(left) + "," + to_string(bottom) + "," + to_string(right) + "," + to_string(top);
 
-						HTTPClientSession s(desc.srcHost, desc.srcPort);
-						HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
-
-						s.sendRequest(request);
-						HTTPResponse response;
-
-						if (response.getStatus() != HTTPResponse::HTTP_OK)
+						bool retry = false;
+						do
 						{
-							cout << "Tile Cache Error: failed to receive tile (" << x << "," << y << ")! http return code: "  << response.getStatus() << endl;
-							runCacheCreation = false;
-							break;
-						}
-
-						istream& rs = s.receiveResponse(response);
-
-						std::streamsize len = 0;
-						rs.read((char*)tileImg.rawData, expectedTileSize);
-						std::streamsize readSize = rs.gcount();
-						if (readSize < expectedTileSize)
-						{
-							cout << "Tile Cache Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!" << endl;
-							runCacheCreation = false;
-							break;
-						}
-
-						if (desc.invalidValue.IsSet())
-						{
-							if (utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
+							try 
 							{
-								if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
-								{
-									runCacheCreation = false;
-									break;
-								}
-								continue;
-							}
-						}
+								retry = false;
 
-						if (!StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
-						{
-							runCacheCreation = false;
-							break;
-						}
+								HTTPClientSession s(desc.srcHost, desc.srcPort);
+								HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
+
+								s.sendRequest(request);
+								HTTPResponse response;
+
+								if (response.getStatus() != HTTPResponse::HTTP_OK)
+								{
+									cout << "Tile Cache Error: failed to receive tile (" << x << "," << y << ")! http return code: "  << response.getStatus() << endl;
+									retry = true;
+									continue;
+								}
+
+								istream& rs = s.receiveResponse(response);
+
+								std::streamsize len = 0;
+								rs.read((char*)tileImg.rawData, expectedTileSize);
+								std::streamsize readSize = rs.gcount();
+								if (readSize < expectedTileSize)
+								{
+									cout << "Tile Cache Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!" << endl;
+									retry = true;
+									continue;
+								}
+
+								s.reset();
+
+
+								if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
+								{
+									if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+									{
+										retry = true;
+										continue;
+									}
+								}
+								else if (!StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
+								{
+									retry = true; 
+									continue;
+								}
+							}
+							catch (Poco::Exception& e) 
+							{
+								std::cout << "Tile Cache Error: " << e.displayText() << " ... retrying" << std::endl;
+								retry = true;
+							}
+							catch (...)
+							{
+								std::cout << "Tile Cache Error: " << "unknown error during tile retrieval ... retrying" << std::endl;
+								retry = true;
+							}
+						} 
+						while (retry);
+
 					}
 				}
 			}
