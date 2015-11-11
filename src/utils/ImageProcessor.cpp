@@ -29,6 +29,7 @@ namespace dw
 {
 	Image::Image(int width, int height, DataType dataType)
 		: ownsRawDataPointer(true)
+		, ownsProcessedDataPointer(true)
 		, rawDataSize(width * height * DataTypePixelSize[dataType])
 		, rawData((rawDataSize > 0) ? new u8[rawDataSize] : NULL)
 		, width(width)
@@ -43,6 +44,7 @@ namespace dw
 
 	Image::Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer)
 		: ownsRawDataPointer(ownsRawDataPointer)
+		, ownsProcessedDataPointer(true)
 		, rawDataSize(width * height * DataTypePixelSize[dataType])
 		, rawData(rawData)
 		, width(width)
@@ -55,33 +57,56 @@ namespace dw
 	{
 	}
 
+	Image::Image(u8* processedData, size processedDataSize, ContentType contentType, bool ownsProcessedDataPointer)
+		: ownsRawDataPointer(true)
+		, ownsProcessedDataPointer(ownsProcessedDataPointer)
+		, rawDataSize(0)
+		, rawData(NULL)
+		, width(0)
+		, height(0)
+		, rawPixelSize(0)
+		, rawDataType(DT_Unknown)
+		, processedData(processedData)
+		, processedDataSize(processedDataSize)
+		, processedContentType(contentType)
+	{
+	}
+
 	Image::~Image()
 	{
 		FreeProcessedData();
+		FreeRawData();
+	}
 
+	void Image::FreeRawData()
+	{
 		if (ownsRawDataPointer)
 		{
 			delete[] rawData;
 		}
+		rawData = NULL;
 	}
 
 	void Image::FreeProcessedData()
 	{
-		switch (processedContentType)
+		if (ownsProcessedDataPointer)
 		{
-		case dw::CT_Image_PNG:
-			STBIW_FREE(processedData);
-			break;
-		case CT_Image_Raw_S16:
-		case CT_Image_Raw_U8:
-		case CT_Image_Raw_U32:
-		case CT_Unknown:
-		default:
-			if (rawData != processedData)
+			switch (processedContentType)
 			{
-				delete[] processedData;
+			case dw::CT_Image_PNG:
+				STBIW_FREE(processedData);
+				break;
+			case CT_Image_Raw_S16:
+			case CT_Image_Raw_U8:
+			case CT_Image_Raw_U32:
+			case CT_Unknown:
+			default:
+				if (rawData != processedData)
+				{
+					delete[] processedData;
+				}
+				break;
 			}
-			break;
 		}
 
 		processedData = NULL;
@@ -175,6 +200,43 @@ namespace dw
 			{
 				utils::InvalidValue invalidValue(InvalidValueASTER);
 				return CompressElevation(image, invalidValue);
+			}
+			case CT_Unknown:
+			default:
+				return false;
+			}
+		}
+
+		bool ConvertContentTypeToRawImage(Image& image)
+		{
+			image.FreeRawData();
+
+			switch (image.processedContentType)
+			{
+			case dw::CT_Image_PNG:
+			{
+				// TODO: implement
+				return false;
+			}
+
+			// handle all raw formats in the same way (raw data ptr points to processed data, which avoids data duplication)
+			case CT_Image_Raw_S16:
+				if (image.rawDataType == DT_Unknown) image.rawDataType = DT_S16;
+			case CT_Image_Raw_U8:
+				if (image.rawDataType == DT_Unknown) image.rawDataType = DT_U8;
+			case CT_Image_Raw_U32:
+				if (image.rawDataType == DT_Unknown) image.rawDataType = DT_U32;
+			case CT_Image_Raw_F32:
+				if (image.rawDataType == DT_Unknown) image.rawDataType = DT_F32;
+			case CT_Image_Raw_F64:
+				if (image.rawDataType == DT_Unknown) image.rawDataType = DT_F64;
+
+				image.rawData = image.processedData;
+				image.rawDataSize = image.processedDataSize;
+				return true;
+			case CT_Image_Elevation:
+			{
+				return DecompressElevation(image);
 			}
 			case CT_Unknown:
 			default:

@@ -10,5 +10,6 @@ namespace dw
 	namespace utils
 	{
 		bool CompressElevation(Image& img, const utils::InvalidValue& invalidValue);
+		bool DecompressElevation(Image& img);
 	}
 }

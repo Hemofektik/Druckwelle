@@ -17,13 +17,13 @@ namespace dw
 	{
 		static const u8 ElevationFlag_RLE = 0xFE;
 		static const u8 ElevationFlag_RelativeBulk = 0xFF;
+		static const int MaxNumElementsPerRowSegment = (1 << (sizeof(u16) * 8)) - 1;
 		bool CompressElevation(Image& img, const utils::InvalidValue& invalidValue)
 		{
 			assert(img.rawDataType == DT_S16);
-			assert(img.width < (1 << (sizeof(u16) * 8)));
 
 			img.processedDataSize = 0;
-			img.processedData = new u8[img.rawDataSize + img.height * sizeof(u32)];
+			img.processedData = new u8[img.rawDataSize * 2 + img.height * sizeof(u32)];
 
 			s16* elevation = (s16*)img.rawData;
 			u8* compressedElevation = img.processedData + img.height * sizeof(u32);
@@ -135,6 +135,11 @@ namespace dw
 						}
 
 						elevation++;
+
+						if (segment.numElements == MaxNumElementsPerRowSegment)
+						{
+							break;
+						}
 					}
 
 					segments.push_back(segment);
@@ -241,6 +246,11 @@ namespace dw
 			img.processedDataSize = (compressedElevation - img.processedData);
 
 			return true;
+		}
+
+		bool DecompressElevation(Image& img)
+		{
+			return false;
 		}
 	}
 }
