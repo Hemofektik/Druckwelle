@@ -9,3 +9,5 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 add_subdirectory(src)
+add_subdirectory(test)
+
