@@ -1,6 +1,7 @@
 
 #include "../WebMapTileService.h"
 #include "../utils/ImageProcessor.h"
+#include "../utils/Elevation.h"
 
 #include <Poco/Net/HTTPRequest.h>
 #include "Poco/Net/HTTPClientSession.h"
@@ -135,8 +136,6 @@ namespace dw
 
 				const u32 NumDstPixelsAlongLongitude = NextPowerOfTwo(NumSrcPixelsAlongLongitude);
 				const u32 NumDstPixelsAlongLatitude = NextPowerOfTwo(NumSrcPixelsAlongLatitude);
-
-				const s16 InvalidValueASTER = -9999;
 
 				desc.id = "Tile Cache";
 				desc.title = "Tile Cache";

@@ -16,7 +16,8 @@ foreach(f ${SOURCES})
 endforeach()
 
 set(ADDITIONAL_SOURCES 
-	${CMAKE_SOURCE_DIR}/src/WebServer.cpp
+	${CMAKE_SOURCE_DIR}/src/utils/ImageProcessor.cpp
+	${CMAKE_SOURCE_DIR}/src/utils/Elevation.cpp
 )
 
 foreach(f ${ADDITIONAL_SOURCES})

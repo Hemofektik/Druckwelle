@@ -8,7 +8,6 @@ namespace dw
 	{
 		bool ownsRawDataPointer;
 
-
 	public:
 		size rawDataSize;
 		u8* rawData;

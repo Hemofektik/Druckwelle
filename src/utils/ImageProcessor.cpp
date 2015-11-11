@@ -173,7 +173,7 @@ namespace dw
 				return true;
 			case CT_Image_Elevation:
 			{
-				utils::InvalidValue invalidValue((s16)-9999);
+				utils::InvalidValue invalidValue(InvalidValueASTER);
 				return CompressElevation(image, invalidValue);
 			}
 			case CT_Unknown:
