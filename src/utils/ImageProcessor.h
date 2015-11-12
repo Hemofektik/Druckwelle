@@ -7,7 +7,7 @@ namespace dw
 	class Image
 	{
 		bool ownsRawDataPointer;
-
+		bool ownsProcessedDataPointer;
 
 	public:
 		size rawDataSize;
@@ -25,8 +25,10 @@ namespace dw
 
 		Image(int width, int height, DataType dataType);
 		Image(int width, int height, DataType dataType, u8* rawData, bool ownsRawDataPointer);
+		Image(u8* processedData, size processedDataSize, ContentType contentType, bool ownsProcessedDataPointer);
 		~Image();
 
+		void FreeRawData();
 		void FreeProcessedData();
 		bool SaveToPNG(const string& filename);
 
@@ -34,11 +36,14 @@ namespace dw
 		// dstType must be either one or four bytes wide (greyscale or rgba)
 		template <typename srcType, typename dstType>
 		bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert);
+
+		bool SaveProcessedDataToFile(const string& filename) const;
 	};
 
 	namespace utils
 	{
 		bool ConvertRawImageToContentType(Image& image, ContentType contentType);
+		bool ConvertContentTypeToRawImage(Image& image);
 		void ExtendBoundingBoxForLanczos(BBox& asterBBox, double srcDegreesPerPixelX, double srcDegreesPerPixelY, double dstDegreesPerPixelX, double dstDegreesPerPixelY);
 
 		struct SampleTransform

@@ -167,13 +167,15 @@ namespace dw
 		const char* format = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "format");
 		const char* tileRow = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilerow");
 		const char* tileCol = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilecol");
+		const char* tileMatrixSet = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilematrixset");
+		const char* tileMatrix = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilematrix");
 
 		// optional arguments
 		//const char* time = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "time");
 
-		if (!layers || !format)
+		if (!layers || !styles || !format || !tileRow || !tileCol || !tileMatrixSet || !tileMatrix)
 		{
-			return HandleServiceException(connection, "missing mandatory argument");
+			return HandleServiceException(connection, "MissingParameterValue");
 		}
 
 		GetTileRequest gtr;

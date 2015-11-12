@@ -1,6 +1,7 @@
 
 #include "../WebMapTileService.h"
 #include "../utils/ImageProcessor.h"
+#include "../utils/Elevation.h"
 
 #include <Poco/Net/HTTPRequest.h>
 #include "Poco/Net/HTTPClientSession.h"
@@ -136,8 +137,6 @@ namespace dw
 				const u32 NumDstPixelsAlongLongitude = NextPowerOfTwo(NumSrcPixelsAlongLongitude) / 2;
 				const u32 NumDstPixelsAlongLatitude = NextPowerOfTwo(NumSrcPixelsAlongLatitude) / 2;
 
-				const s16 InvalidValueASTER = -9999;
-
 				desc.id = "Tile Cache";
 				desc.title = "Tile Cache";
 				desc.abstract = "";
@@ -147,7 +146,7 @@ namespace dw
 				desc.srcLayerName = "QualityElevation";
 				desc.storagePath = "D:/QECache";
 				//desc.storagePath = "/home/rsc/Desktop/QECache";
-				desc.fileExtension = ".elv";
+				desc.fileExtension = ".cem";
 
 				//const u32 TileQuadCount = 16;
 				//const u32 MaxTesselationFactor = 32;
@@ -255,26 +254,15 @@ namespace dw
 				string filename = xString + desc.fileExtension;
 				path /= filename;
 
-				utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType);
-				ofstream file(path.c_str(), ios::out | ios::trunc | ios::binary);
-				if (file.is_open())
+				if (!utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType))
 				{
-					try
-					{
-						file.write((const char*)tileImg.processedData, tileImg.processedDataSize);
-					}
-					catch (...) 
-					{
-						std::cout << "Tile Cache Error: writing to file failed" << std::endl;
-						return false;
-					}
+					std::cout << "Tile Cache Error: compressing elevation failed" << std::endl;
 				}
-				else if(file.fail())
+				if (!tileImg.SaveProcessedDataToFile(path.string()))
 				{
-					cout << "Tile Cache Error: Creating File Failed: " << path << endl;
+					std::cout << "Tile Cache Error: writing to file failed" << std::endl;
 					return false;
 				}
-				file.close();
 
 				return true;
 			}

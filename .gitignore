@@ -6,7 +6,4 @@
 *.sdf
 obj/
 x64/
-/src/fannbox/sln
-/src/fannbox/DrizzleUtils
-/src/drizzle/sln
-/src/server/sln
+/sln

@@ -1,9 +1,9 @@
 # Druckwelle #
 
-Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++
-Aiming to serve geo raster data beyond the WMS/WMTS specification like RAW data or custom formats.
+**Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++**
 
-Druckwelle does not feature a full implementation of WMS/WMTS Specifications.
+Aiming to serve blistering fast geo raster data beyond the WMS/WMTS specification like raw data or custom formats.
+Druckwelle does not feature a full implementation of WMS/WMTS Specifications and is not planned to do some day.
 
 ### Features ###
 
@@ -24,13 +24,13 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications.
 
 ## Windows ##
 
- * run GenerateLibAndInc.bat
+ 1. run GenerateLibAndInc.bat
  * run CreateProjectFiles.bat
  * open Visual Studio Solution from sln directory and build
 
 ## Linux / OSX ##
 
- * download Poco Libraries Basic Edition (http://pocoproject.org/), compile, and install
+ 1. download Poco Libraries Basic Edition (http://pocoproject.org/), compile, and install
  * install package libmicrohttpd-dev
  * install package libgdal-dev
  * cmake -G "Unix Makefile"
