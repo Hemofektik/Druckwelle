@@ -21,7 +21,6 @@
 
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
-#include "../utils/Elevation.h"
 #include "../utils/Filesystem.h"
 
 using namespace std;
@@ -398,6 +397,7 @@ namespace Layers
 
 			Image elevation(numPixelsX, numPixelsY, DT_S16);
 
+			const s16 InvalidValueASTER = -9999;
 			SetAlignedMemory((s16*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
 
 			HandleGetMapRequestResult result = HGMRR_OK;

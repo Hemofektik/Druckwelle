@@ -140,8 +140,8 @@ namespace dw
 				const int NumSrcPixelsAlongLongitude = 360 * AsterPixelsPerDegree;
 				const int NumSrcPixelsAlongLatitude = 180 * AsterPixelsPerDegree;
 
-				const u32 NumDstPixelsAlongLongitude = NextPowerOfTwo(NumSrcPixelsAlongLongitude);
-				const u32 NumDstPixelsAlongLatitude = NextPowerOfTwo(NumSrcPixelsAlongLatitude);
+				const u32 NumDstPixelsAlongLongitude = NextPowerOfTwo(NumSrcPixelsAlongLongitude) / 2;
+				const u32 NumDstPixelsAlongLatitude = NextPowerOfTwo(NumSrcPixelsAlongLatitude) / 2;
 
 				desc.id = "Tile Cache";
 				desc.title = "Tile Cache";
