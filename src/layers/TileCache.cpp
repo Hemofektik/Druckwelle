@@ -121,7 +121,13 @@ namespace dw
 			};
 
 			TileCacheDescription desc;
-			unique_ptr<u8> fileStatus;
+
+			struct Level
+			{
+				unique_ptr<u8> fileStatus;
+			};
+
+			unique_ptr<Level> levels;
 
 			const u8 FileStatus_Missing = 0;
 			const u8 FileStatus_Empty = 1;
@@ -175,47 +181,62 @@ namespace dw
 
 			bool EnumerateFiles()
 			{
-				path topLevelPath = desc.storagePath;
+				path root = desc.storagePath;
 
 				error_code err;
-				create_directories(topLevelPath, err);
+				create_directories(root, err);
 
 				if (err)
 				{
-					cout << "Tile Cache Error: Creating Directory Failed: " << topLevelPath << " (" << err.message() << ")"<< endl;
+					cout << "Tile Cache Error: Creating Directory Failed: " << root << " (" << err.message() << ")"<< endl;
 					return false;
 				}
 
-				topLevelPath /= CreateZeroPaddedString(desc.numLevels - 1, desc.numLevelDigits);
+				levels.reset(new Level[desc.numLevels]);
 
-				fileStatus.reset(new u8[desc.numTilesX * desc.numTilesY]);
-				memset(fileStatus.get(), FileStatus_Missing, desc.numTilesX * desc.numTilesY);
-				if(exists(topLevelPath))
+				for (u32 l = 0; l < desc.numLevels; l++)
 				{
-                    for (directory_iterator di(topLevelPath); di != fsend(di); di++)
-                    {
-                        const auto& entity = *di;
-                        if (!is_directory(entity.status())) continue;
-
-                        int y = atoi(entity.path().filename().generic_string().c_str());
-
-                        for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
-                        {
-                            const auto& fileEntity = *fi;
-                            const auto extension = fileEntity.path().extension();
-                            if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
-                            {
-                                int x = atoi(fileEntity.path().filename().generic_string().c_str());
-
-                                auto fileSize = file_size(fileEntity.path());
-
-                                fileStatus.get()[y * desc.numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
-                            }
-                        }
-                    }
+					EnumerateFilesForLevel(l, root);
 				}
 
 				return true;
+			}
+
+			void EnumerateFilesForLevel(int level, const path& storagePath)
+			{
+				path levelPath = desc.storagePath;
+				levelPath /= CreateZeroPaddedString(level, desc.numLevelDigits);
+
+				int numTilesX = desc.numTilesX >> (desc.numLevels - level - 1);
+				int numTilesY = desc.numTilesY >> (desc.numLevels - level - 1);
+
+				auto& fileStatus = levels.get()[level].fileStatus;
+				fileStatus.reset(new u8[numTilesX * numTilesY]);
+				memset(fileStatus.get(), FileStatus_Missing, numTilesX * numTilesY);
+				if (exists(levelPath))
+				{
+					for (directory_iterator di(levelPath); di != fsend(di); di++)
+					{
+						const auto& entity = *di;
+						if (!is_directory(entity.status())) continue;
+
+						int y = atoi(entity.path().filename().generic_string().c_str());
+
+						for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
+						{
+							const auto& fileEntity = *fi;
+							const auto extension = fileEntity.path().extension();
+							if (is_regular_file(fileEntity.status()) && extension == desc.fileExtension)
+							{
+								int x = atoi(fileEntity.path().filename().generic_string().c_str());
+
+								auto fileSize = file_size(fileEntity.path());
+
+								fileStatus.get()[y * numTilesX + x] = (fileSize > 0) ? FileStatus_Exists : FileStatus_Empty;
+							}
+						}
+					}
+				}
 			}
 
 			string CreateZeroPaddedString(int number, u32 numberOfDigits)
@@ -269,6 +290,12 @@ namespace dw
 
 			void CreateTileCacheAsync()
 			{
+				CreateTileCacheLevel0();
+				CreateTileCacheMipLevels();
+			}
+
+			void CreateTileCacheLevel0()
+			{
 				Image emptyTile(0, 0, desc.dataType);
 
 				const double TileWidthInDegree = (360.0 / desc.numTilesX);
@@ -277,6 +304,8 @@ namespace dw
 				const double TilePaddingRightInDegree = TileWidthInDegree * (desc.tilePaddingRight / (double)desc.tileWidth);
 				const double TilePaddingTopInDegree = TileHeightInDegree * (desc.tilePaddingTop / (double)desc.tileHeight);
 				const double TilePaddingBottomInDegree = TileHeightInDegree * (desc.tilePaddingBottom / (double)desc.tileHeight);
+
+				const auto& fileStatus = levels.get()[desc.numLevels - 1].fileStatus;
 
 				for (int y = 0; y < desc.numTilesY; y++)
 				{
@@ -365,6 +394,35 @@ namespace dw
 						} 
 						while (retry);
 
+					}
+				}
+			}
+
+			void CreateTileCacheMipLevels()
+			{
+				int level = desc.numLevels - 1;
+				int numTilesX = desc.numTilesX;
+				int numTilesY = desc.numTilesY;
+				while (level > 0)
+				{
+					level--;
+					numTilesX /= 2;
+					numTilesY /= 2;
+
+					const auto& fileStatus = levels.get()[level].fileStatus;
+
+					for (int y = 0; y < desc.numTilesY; y++)
+					{
+						//#pragma omp parallel for
+						for (int x = 0; x < desc.numTilesX; x++)
+						{
+							if (fileStatus.get()[y * numTilesX + x] != FileStatus_Missing)
+							{
+								continue;
+							}
+
+							// TODO: create mip level image from four high level images
+						}
 					}
 				}
 			}
