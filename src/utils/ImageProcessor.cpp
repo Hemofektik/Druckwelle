@@ -115,18 +115,29 @@ namespace dw
 	bool Image::SaveToPNG(const string& filename)
 	{
 		assert(rawDataType == DT_U8 || rawDataType == DT_RGBA8);
-		if (utils::ConvertRawImageToContentType(*this, CT_Image_PNG))
-		{
-			ofstream file(filename, ios::out | ios::binary);
-			if (file.is_open())
-			{
-				file.write((char*)processedData, processedDataSize);
-			}
-			file.close();
+		return (utils::ConvertRawImageToContentType(*this, CT_Image_PNG) && SaveProcessedDataToFile(filename));
+	}
 
-			return true;
+	bool Image::SaveProcessedDataToFile(const string& filename) const
+	{
+		ofstream file(filename.c_str(), ios::out | ios::trunc | ios::binary);
+		if (file.is_open())
+		{
+			try
+			{
+				file.write((const char*)processedData, processedDataSize);
+			}
+			catch (...)
+			{
+				return false;
+			}
 		}
-		return false;
+		else if (file.fail())
+		{
+			return false;
+		}
+		file.close();
+		return true;
 	}
 
 	template <typename srcType, typename dstType>

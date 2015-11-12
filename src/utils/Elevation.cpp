@@ -11,10 +11,100 @@
 using namespace std;
 using namespace ZFXMath;
 
+
+
 namespace dw
 {
 	namespace utils
 	{
+		struct BigEndianU16
+		{
+			union
+			{
+				u16		value;
+				struct
+				{
+#ifdef LITTLE_ENDIAN
+					u8 l : 8;
+					u8 u : 8;
+#else
+					u8 u : 8;
+					u8 l : 8;
+#endif
+				};
+			};
+
+			BigEndianU16(u16 value) : value(value) {}
+		};
+
+		struct BigEndianU32
+		{
+			union
+			{
+				u32		value;
+				struct
+				{
+#ifdef LITTLE_ENDIAN
+					u8 b0 : 8;
+					u8 b1 : 8;
+					u8 b2 : 8;
+					u8 b3 : 8;
+#else
+					u8 b3 : 8;
+					u8 b2 : 8;
+					u8 b1 : 8;
+					u8 b0 : 8;
+#endif
+				};
+			};
+
+			BigEndianU32(u32 value) : value(value) {}
+			BigEndianU32(u8 ch3, u8 ch2, u8 ch1, u8 ch0)
+#ifdef LITTLE_ENDIAN
+				: b0(ch0), b1(ch1), b2(ch2), b3(ch3)
+#else
+				: b3(ch3), b2(ch2), b1(ch1), b0(ch0)
+#endif
+			{}
+
+			static BigEndianU32 MakeFourCC(u8 ch0, u8 ch1, u8 ch2, u8 ch3)
+			{
+				return BigEndianU32(ch0, ch1, ch2, ch3);
+			}
+
+			bool operator==(const BigEndianU32& other) const
+			{
+				return other.value == value;
+			}
+			bool operator!=(const BigEndianU32& other) const
+			{
+				return other.value != value;
+			}
+		};
+
+		static const BigEndianU32 CompressedElevationModelFourCC = BigEndianU32::MakeFourCC('C', 'E', 'M', 1);  // version 1
+
+		struct ElevationHeader
+		{
+			BigEndianU32 fourCC;
+			BigEndianU32 width;
+			BigEndianU32 height;
+
+			ElevationHeader(BigEndianU32 fourCC, u32 width, u32 height)
+				: fourCC(fourCC)
+				, width(width)
+				, height(height)
+			{
+			}
+		};
+
+		struct RowSegment
+		{
+			u8 flag;
+			u16 numElements;
+			s16 startValue;
+		};
+
 		static const u8 ElevationFlag_RLE = 0xFE;
 		static const u8 ElevationFlag_RelativeBulk = 0xFF;
 		static const int MaxNumElementsPerRowSegment = (1 << (sizeof(u16) * 8)) - 1;
@@ -23,62 +113,28 @@ namespace dw
 			assert(img.rawDataType == DT_S16);
 
 			img.processedDataSize = 0;
-			img.processedData = new u8[img.rawDataSize * 2 + img.height * sizeof(u32)];
+			img.processedData = new u8[sizeof(ElevationHeader) + img.rawDataSize * 2 + img.height * sizeof(u32)];
 
 			s16* elevation = (s16*)img.rawData;
-			u8* compressedElevation = img.processedData + img.height * sizeof(u32);
-			u8* compressedElevationRowOffset = img.processedData;
+			u8* compressedElevation = img.processedData + sizeof(ElevationHeader) + img.height * sizeof(u32);
+			u8* compressedElevationRowOffset = img.processedData + sizeof(ElevationHeader);
 
-			struct RowSegment
-			{
-				u8 flag;
-				u16 numElements;
-				s16 startValue;
-			};
+			ElevationHeader header(CompressedElevationModelFourCC, img.width, img.height);
 
-			struct BigEndianU16
-			{
-				union
-				{
-					u16		value;
-					struct
-					{
-#ifdef LITTLE_ENDIAN
-						u8 l : 8;
-						u8 u : 8;
-#else
-						u8 u : 8;
-						u8 l : 8;
-#endif
-					};
-				};
+			img.processedData[0] = header.fourCC.b3;
+			img.processedData[1] = header.fourCC.b2;
+			img.processedData[2] = header.fourCC.b1;
+			img.processedData[3] = header.fourCC.b0;
 
-				BigEndianU16(u16 value) : value(value) {}
-			};
+			img.processedData[4] = header.width.b3;
+			img.processedData[5] = header.width.b2;
+			img.processedData[6] = header.width.b1;
+			img.processedData[7] = header.width.b0;
 
-			struct BigEndianU32
-			{
-				union
-				{
-					u32		value;
-					struct
-					{
-#ifdef LITTLE_ENDIAN
-						u8 b0 : 8;
-						u8 b1 : 8;
-						u8 b2 : 8;
-						u8 b3 : 8;
-#else
-						u8 b3 : 8;
-						u8 b2 : 8;
-						u8 b1 : 8;
-						u8 b0 : 8;
-#endif
-					};
-				};
-
-				BigEndianU32(u32 value) : value(value) {}
-			};
+			img.processedData[8] = header.height.b3;
+			img.processedData[9] = header.height.b2;
+			img.processedData[10] = header.height.b1;
+			img.processedData[11] = header.height.b0;
 
 			vector<RowSegment> segments(img.width / 2);
 			for (int y = 0; y < img.height; y++)
@@ -250,7 +306,21 @@ namespace dw
 
 		bool DecompressElevation(Image& img)
 		{
+			u8* header = img.processedData;
+			BigEndianU32 fourCC(header[0], header[1], header[2], header[3]);
+
+			if (fourCC != CompressedElevationModelFourCC)
+			{
+				return false;
+			}
+
+			BigEndianU32 width(header[4], header[5], header[6], header[7]);
+			BigEndianU32 height(header[8], header[9], header[10], header[11]);
+
+			// TODO: decompress data
+
 			return false;
 		}
 	}
 }
+

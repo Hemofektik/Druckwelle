@@ -37,6 +37,8 @@ bool TestElevationCompression()
 		return false;
 	}
 
+	elevationImg.SaveProcessedDataToFile("C:/Dev/temp/noise.cem");
+
 	Image compressedElevationImg(elevationImg.processedData, elevationImg.processedDataSize, elevationImg.processedContentType, false);
 
 	if (!ConvertContentTypeToRawImage(compressedElevationImg))

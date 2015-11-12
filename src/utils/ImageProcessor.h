@@ -36,6 +36,8 @@ namespace dw
 		// dstType must be either one or four bytes wide (greyscale or rgba)
 		template <typename srcType, typename dstType>
 		bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert);
+
+		bool SaveProcessedDataToFile(const string& filename) const;
 	};
 
 	namespace utils
