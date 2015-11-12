@@ -255,7 +255,7 @@ namespace dw
 				segments.push_back(segment);
 			}
 
-			// remove small RLE segments as they better off to be merged with their relative offset neighbor segments
+			// remove small RLE segments as they are better off to be merged with their relative offset neighbor segments
 			for (int s = (int)segments.size() - 1; s >= 0 ; s--)
 			{
 				RowSegment& segment = segments[s];
