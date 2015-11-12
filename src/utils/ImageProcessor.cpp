@@ -78,6 +78,18 @@ namespace dw
 		FreeRawData();
 	}
 
+	void Image::AllocateRawData(int width, int height, DataType dataType)
+	{
+		FreeRawData();
+
+		this->rawDataSize = width * height * DataTypePixelSize[dataType];
+		this->rawData = (rawDataSize > 0) ? new u8[rawDataSize] : NULL;
+		this->width = width;
+		this->height = height;
+		this->rawPixelSize = DataTypePixelSize[dataType];
+		this->rawDataType = dataType;
+	}
+
 	void Image::FreeRawData()
 	{
 		if (ownsRawDataPointer)

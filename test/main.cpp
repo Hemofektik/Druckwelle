@@ -6,7 +6,7 @@ int main(int argc, const char* argv[])
 {
 	int numFailedTests = 0;
 
-	if(!TestElevationCompression()) numFailedTests++;
-	
+	if (!TestElevationCompression()) numFailedTests++;
+
 	return numFailedTests;
 }

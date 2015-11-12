@@ -28,6 +28,7 @@ namespace dw
 		Image(u8* processedData, size processedDataSize, ContentType contentType, bool ownsProcessedDataPointer);
 		~Image();
 
+		void AllocateRawData(int width, int height, DataType dataType);
 		void FreeRawData();
 		void FreeProcessedData();
 		bool SaveToPNG(const string& filename);

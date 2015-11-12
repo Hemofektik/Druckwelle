@@ -26,15 +26,22 @@ namespace dw
 				{
 #ifdef LITTLE_ENDIAN
 					u8 l : 8;
-					u8 u : 8;
+					u8 h : 8;
 #else
-					u8 u : 8;
+					u8 h : 8;
 					u8 l : 8;
 #endif
 				};
 			};
 
 			BigEndianU16(u16 value) : value(value) {}
+			BigEndianU16(u8 ch1, u8 ch0)
+#ifdef LITTLE_ENDIAN
+				: l(ch0), h(ch1)
+#else
+				: h(ch1), l(ch0)
+#endif
+			{}
 		};
 
 		struct BigEndianU32
@@ -198,6 +205,11 @@ namespace dw
 						}
 					}
 
+					if (segment.numElements == 1)
+					{
+						segment.flag = ElevationFlag_RLE;
+					}
+
 					segments.push_back(segment);
 				}
 
@@ -225,6 +237,11 @@ namespace dw
 					{
 						segments[s - 1].numElements += segments[s].numElements;
 						segments.erase(segments.begin() + s);
+
+						if (s < segments.size()) // reevaluate next segment
+						{
+							s++;
+						}
 					}
 				}
 
@@ -236,7 +253,7 @@ namespace dw
 					BigEndianU16 length(segment.numElements);
 
 					compressedElevation[0] = segment.flag;
-					compressedElevation[1] = length.u;
+					compressedElevation[1] = length.h;
 					compressedElevation[2] = length.l;
 					compressedElevation += 3;
 
@@ -244,7 +261,7 @@ namespace dw
 					{
 						BigEndianU16 value(segment.startValue);
 
-						compressedElevation[0] = value.u;
+						compressedElevation[0] = value.h;
 						compressedElevation[1] = value.l;
 
 						compressedElevation += 2;
@@ -282,7 +299,7 @@ namespace dw
 
 							BigEndianU16 reference(min);
 							compressedElevation[0] = ElevationFlag_RelativeBulk;
-							compressedElevation[1] = reference.u;
+							compressedElevation[1] = reference.h;
 							compressedElevation[2] = reference.l;
 							compressedElevation += 3;
 
@@ -317,9 +334,72 @@ namespace dw
 			BigEndianU32 width(header[4], header[5], header[6], header[7]);
 			BigEndianU32 height(header[8], header[9], header[10], header[11]);
 
-			// TODO: decompress data
+			img.AllocateRawData(width.value, height.value, DT_S16);
 
-			return false;
+			u8* compressedElevationRowOffset = img.processedData + sizeof(ElevationHeader);
+			s16* imgDataRaw = (s16*)img.rawData;
+
+			for (int y = 0; y < img.height; y++)
+			{
+				u8* rowOffset = compressedElevationRowOffset + sizeof(u32) * y;
+				BigEndianU32 offset(rowOffset[0], rowOffset[1], rowOffset[2], rowOffset[3]);
+
+				u8* rowDataCompressed = &img.processedData[offset.value];
+				s16* imgRowDataRaw = &imgDataRaw[y * img.width];
+				s16* imgRowDataRawEnd = imgRowDataRaw + img.width;
+
+				while (imgRowDataRaw < imgRowDataRawEnd)
+				{
+					u8 elevationFlag = rowDataCompressed[0];
+					u8 numElementsH = rowDataCompressed[1];
+					u8 numElementsL = rowDataCompressed[2];
+					rowDataCompressed += 3;
+
+					const BigEndianU16 numElements(numElementsH, numElementsL);
+
+					if (imgRowDataRaw + numElements.value > imgRowDataRawEnd)
+					{
+						return false; // file is corrupt
+					}
+
+					if (elevationFlag == ElevationFlag_RLE)
+					{
+						u8 valueH = rowDataCompressed[0];
+						u8 valueL = rowDataCompressed[1];
+						rowDataCompressed += 2;
+
+						const BigEndianU16 value(valueH, valueL);
+
+						for (int e = 0; e < numElements.value; e++)
+						{
+							*imgRowDataRaw = value.value;
+							imgRowDataRaw++;
+						}
+					}
+					else if (elevationFlag == ElevationFlag_RelativeBulk)
+					{
+						s16 referenceValue = 0;
+						for (int e = 0; e < numElements.value; e++)
+						{
+							if (rowDataCompressed[0] == ElevationFlag_RelativeBulk)
+							{
+								u8 referenceValueH = rowDataCompressed[1];
+								u8 referenceValueL = rowDataCompressed[2];
+								rowDataCompressed += 3;
+
+								const BigEndianU16 value(referenceValueH, referenceValueL);
+								referenceValue = value.value;
+							}
+
+							*imgRowDataRaw = referenceValue + rowDataCompressed[0];
+							imgRowDataRaw++;
+							rowDataCompressed++;
+						}
+					}
+				}
+			}
+
+			return true;
 		}
 	}
 }
