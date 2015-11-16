@@ -18,6 +18,7 @@ using namespace Concurrency::graphics;
 #include <stb_image_write.h>
 
 #include <ZFXMath.h>
+#include "../utils/Filesystem.h"
 
 
 
@@ -152,6 +153,63 @@ namespace dw
 		return true;
 	}
 
+	bool Image::LoadContentFromFile(const string& filename, ContentType contentType, shared_ptr<Image>& imageOut)
+	{
+		error_code err;
+		const auto fileSize = file_size(filename, err);
+		if (err)
+		{
+			return false;
+		}
+
+		imageOut.reset(new Image(new u8[fileSize], fileSize, contentType, true));
+
+		ifstream file(filename.c_str(), ios::in | ios::binary);
+		if (file.is_open())
+		{
+			try
+			{
+				file.read((char*)imageOut.get()->processedData, fileSize);
+			}
+			catch (...)
+			{
+				return false;
+			}
+		}
+		else if (file.fail())
+		{
+			return false;
+		}
+		file.close();
+
+		return true;
+	}
+
+
+	void Image::CopyFromSubImage(const Image& src, int targetX, int targetY)
+	{
+		assert(src.rawDataType == rawDataType);
+
+		const int w = Min(width - targetX, src.width);
+		const int h = Min(height - targetY, src.height);
+
+		const size pixelSize = DataTypePixelSize[rawDataType];
+		const size srcPitch = src.width * pixelSize;
+		const size dstPitch = width * pixelSize;
+
+		size rowSizeToCopy = w * pixelSize;
+
+		u8* srcRow = src.rawData;
+		u8* dstRow = &rawData[dstPitch * targetY + targetX * pixelSize];
+		for (int y = 0; y < h; y++)
+		{
+			memcpy(dstRow, srcRow, rowSizeToCopy);
+
+			srcRow += srcPitch;
+			dstRow += dstPitch;
+		}
+	}
+
 	template <typename srcType, typename dstType>
 	static bool SaveToPNG(const string& filename, std::function<dstType(srcType)> convert, Image& img)
 	{
@@ -221,7 +279,7 @@ namespace dw
 				return true;
 			case CT_Image_Elevation:
 			{
-				utils::InvalidValue invalidValue(InvalidValueASTER);
+				Variant invalidValue(InvalidValueASTER);
 				return CompressElevation(image, invalidValue);
 			}
 			case CT_Unknown:
@@ -553,7 +611,7 @@ namespace dw
 		}
 #endif // ALLOW_AMP
 
-		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const InvalidValue& invalidValue)
+		void SampleWithLanczos(const Image& src, Image& dst, const SampleTransform& transform, const Variant& invalidValue)
 		{
 			assert(src.rawDataType == dst.rawDataType);
 			assert(transform.offsetX - LanczosWindowSize * max(1.0, transform.scaleX) >= 0);
@@ -561,6 +619,7 @@ namespace dw
 			assert((dst.width - 1) * transform.scaleX + LanczosWindowSize * max(1.0, transform.scaleX) + transform.offsetX < src.width);
 			assert((dst.height - 1) * transform.scaleY + LanczosWindowSize * max(1.0, transform.scaleY) + transform.offsetY < src.height);
 
+			// TODO: add version of SampleWithLanczosInternal without invalid value like SampleWithBoxFilter has
 			switch (src.rawDataType)
 			{
 			case DT_U8:
@@ -583,6 +642,102 @@ namespace dw
 			}
 		}
 
+		template<typename T, bool useInvalidValue>
+		static void SampleWithBoxFilter(const Image& src, Image& dst, const T invalidValue)
+		{
+			const int width = dst.width;
+			const int height = dst.height;
+			const int boxWidth = src.width / dst.width;
+			const int boxHeight = src.height / dst.height;
+
+			T* dstPixels = (T*)dst.rawData;
+			const T* srcPixels = (const T*)src.rawData;
+			for (int y = 0; y < height; y++)
+			{
+				for (int x = 0; x < width; x++)
+				{
+					double value = 0.0;
+					int numBoxEntries = useInvalidValue ? boxWidth * boxHeight : 0;
+
+					const T* source = &srcPixels[y * boxHeight * src.width + x * boxWidth];
+					for (int by = 0; by < boxHeight; by++)
+					{
+						for (int bx = 0; bx < boxWidth; bx++)
+						{
+							auto v = *source;
+							if (useInvalidValue)
+							{
+								if (v != invalidValue)
+								{
+									value += v;
+									numBoxEntries++;
+								}
+							}
+							else
+							{
+								value += v;
+							}
+
+							source++;
+						}
+
+						source += src.width;
+					}
+
+					value = numBoxEntries > 0 ? (value / numBoxEntries) : invalidValue;
+					*dstPixels = (T)value;
+				}
+			}
+		}
+
+		void SampleWithBoxFilter(const Image& src, Image& dst, const Variant& invalidValue)
+		{
+			assert(src.rawDataType == dst.rawDataType);
+			assert(src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0);
+			assert((src.width % dst.width == 0) && (src.height % dst.height == 0));
+
+			const bool useInvalidValue = invalidValue.IsSet();
+			if(useInvalidValue)
+			{
+				switch (src.rawDataType)
+				{
+				case DT_U8:
+					return SampleWithBoxFilter<u8, true>(src, dst, invalidValue.GetValue().uint8[0]);
+				case DT_S16:
+					return SampleWithBoxFilter<s16, true>(src, dst, invalidValue.GetValue().sint16[0]);
+				case DT_U32:
+					return SampleWithBoxFilter<u32, true>(src, dst, invalidValue.GetValue().uint32[0]);
+				case DT_F32:
+					return SampleWithBoxFilter<f32, true>(src, dst, invalidValue.GetValue().float32[0]);
+				case DT_F64:
+					return SampleWithBoxFilter<f64, true>(src, dst, invalidValue.GetValue().float64);
+				default:
+					assert(false); // requested datatype not implemented yet, sorry
+					break;
+				}
+			}
+			else
+			{
+				switch (src.rawDataType)
+				{
+				case DT_U8:
+					return SampleWithBoxFilter<u8, false>(src, dst, invalidValue.GetValue().uint8[0]);
+				case DT_S16:
+					return SampleWithBoxFilter<s16, false>(src, dst, invalidValue.GetValue().sint16[0]);
+				case DT_U32:
+					return SampleWithBoxFilter<u32, false>(src, dst, invalidValue.GetValue().uint32[0]);
+				case DT_F32:
+					return SampleWithBoxFilter<f32, false>(src, dst, invalidValue.GetValue().float32[0]);
+				case DT_F64:
+					return SampleWithBoxFilter<f64, false>(src, dst, invalidValue.GetValue().float64);
+				default:
+					assert(false); // requested datatype not implemented yet, sorry
+					break;
+				}
+			}
+		}
+
+
 		template<typename T>
 		bool IsImageCompletelyInvalid(const Image& img, const T invalidValue)
 		{
@@ -604,7 +759,7 @@ namespace dw
 			return true;
 		}
 
-		bool IsImageCompletelyInvalid(const Image& img, const InvalidValue& invalidValue)
+		bool IsImageCompletelyInvalid(const Image& img, const Variant& invalidValue)
 		{
 			assert(invalidValue.IsSet());
 

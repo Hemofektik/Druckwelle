@@ -1,6 +1,10 @@
 # Druckwelle #
 
-**Turbo Web Map Service (WMS) and Web Map Tile Service (WMTS) - 100% C/C++**
+**Turbo GeoServer - 100% C/C++**
+
+ * Web Map Service (WMS)
+ * Web Map Tile Service (WMTS)
+ * Web Feature Service (WFS)
 
 Aiming to serve blistering fast geo raster data beyond the WMS/WMTS specification like raw data or custom formats.
 Druckwelle does not feature a full implementation of WMS/WMTS Specifications and is not planned to do some day.

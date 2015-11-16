@@ -92,11 +92,83 @@ namespace dw
 		double GetHeight() const { return maxY - minY; }
 	};
 
+	struct Variant
+	{
+	public:
+		union Value
+		{
+			u8		uint8[8];
+			s16		sint16[4];
+			u32		uint32[2];
+			f32		float32[2];
+			f64		float64;
+		};
+
+	private:
+		Value value;
+		bool isSet;
+		DataType dataType;
+
+	public:
+
+		Variant()
+		{
+			value.float64 = 0.0;
+			isSet = false;
+			dataType = DT_Unknown;
+		}
+		Variant(u8 invalidValue)
+		{
+			value.uint8[0] = invalidValue;
+			isSet = true;
+			dataType = DT_U8;
+		}
+		Variant(s16 invalidValue)
+		{
+			value.sint16[0] = invalidValue;
+			isSet = true;
+			dataType = DT_S16;
+		}
+		Variant(u32 invalidValue)
+		{
+			value.uint32[0] = invalidValue;
+			isSet = true;
+			dataType = DT_U32;
+		}
+		Variant(f32 invalidValue)
+		{
+			value.float32[0] = invalidValue;
+			isSet = true;
+			dataType = DT_F32;
+		}
+		Variant(f64 invalidValue)
+		{
+			value.float64 = invalidValue;
+			isSet = true;
+			dataType = DT_F64;
+		}
+
+		const Value GetValue() const
+		{
+			return value;
+		}
+
+		const bool IsSet() const
+		{
+			return isSet;
+		}
+
+		const DataType GetDataType() const
+		{
+			return dataType;
+		}
+	};
+
 	ContentType GetContentType(const string& contentTypeId);
 	DataType FindCompatibleDataType(ContentType contentType, const std::vector<DataType>& availableDataTypes);
 
 	template<typename T>
-	void SetAlignedMemory(T* dest, T value, size count)
+	void SetTypedMemory(T* dest, T value, size count)
     {
     	const T* end = dest + count;
     	while(dest < end)
@@ -105,4 +177,6 @@ namespace dw
     		dest++;
     	}
     }
+
+	void SetTypedMemory(void* dest, const Variant& value, size count);
 }

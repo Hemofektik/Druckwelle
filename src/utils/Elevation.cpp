@@ -115,7 +115,7 @@ namespace dw
 		static const u8 ElevationFlag_RLE = 0xFE;
 		static const u8 ElevationFlag_RelativeBulk = 0xFF;
 		static const int MaxNumElementsPerRowSegment = (1 << (sizeof(u16) * 8)) - 1;
-		bool CompressElevation(Image& img, const utils::InvalidValue& invalidValue)
+		bool CompressElevation(Image& img, const Variant& invalidValue)
 		{
 			assert(img.rawDataType == DT_S16);
 

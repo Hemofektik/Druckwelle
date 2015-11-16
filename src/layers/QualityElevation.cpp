@@ -22,6 +22,7 @@
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
 #include "../utils/Filesystem.h"
+#include "../utils/Elevation.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -396,9 +397,7 @@ namespace Layers
 			const int numPixelsY = numAsterTilesY * AsterPixelsPerDegree + 1;
 
 			Image elevation(numPixelsX, numPixelsY, DT_S16);
-
-			const s16 InvalidValueASTER = -9999;
-			SetAlignedMemory((s16*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
+			SetTypedMemory((s16*)elevation.rawData, InvalidValueASTER, elevation.width * elevation.height);
 
 			HandleGetMapRequestResult result = HGMRR_OK;
 			const int numTiles = (int)asterTilesTouched.size();
@@ -443,7 +442,7 @@ namespace Layers
 
 			high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-			InvalidValue iv(InvalidValueASTER);
+			Variant iv(InvalidValueASTER);
 			SampleWithLanczos(elevation, img, st, iv);
 
 			high_resolution_clock::time_point t2 = high_resolution_clock::now();

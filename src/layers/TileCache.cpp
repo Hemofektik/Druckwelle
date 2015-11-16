@@ -108,7 +108,7 @@ namespace dw
 				ContentType srcContentType;
 				ContentType cachedContentType;
 				DataType dataType;
-				utils::InvalidValue invalidValue;
+				Variant invalidValue;
 
 				u32 numTilesX;
 				u32 numTilesY;
@@ -150,7 +150,8 @@ namespace dw
 				desc.srcHost = "localhost";
 				desc.srcPort = 8282;
 				desc.srcLayerName = "QualityElevation";
-				desc.storagePath = "D:/QECache";
+				//desc.storagePath = "D:/QECache";
+				desc.storagePath = "E:/QECache";
 				//desc.storagePath = "/home/rsc/Desktop/QECache";
 				desc.fileExtension = ".cem";
 
@@ -168,7 +169,7 @@ namespace dw
 				desc.srcContentType = CT_Image_Raw_S16;
 				desc.cachedContentType = CT_Image_Elevation;
 				desc.dataType = DT_S16;
-				desc.invalidValue = utils::InvalidValue(InvalidValueASTER);
+				desc.invalidValue = Variant(InvalidValueASTER);
 
 				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
 				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
@@ -278,10 +279,42 @@ namespace dw
 				if (!utils::ConvertRawImageToContentType(tileImg, desc.cachedContentType))
 				{
 					std::cout << "Tile Cache Error: compressing elevation failed" << std::endl;
+					return false;
 				}
 				if (!tileImg.SaveProcessedDataToFile(path.string()))
 				{
-					std::cout << "Tile Cache Error: writing to file failed" << std::endl;
+					std::cout << "Tile Cache Error: writing to file failed: " << path << std::endl;
+					return false;
+				}
+
+				return true;
+			}
+
+			bool LoadTileFromDisk(shared_ptr<Image>& imageOut, int x, int y, int level)
+			{
+				imageOut.reset((Image*)NULL);
+
+				path path = desc.storagePath;
+
+				string levelString = CreateZeroPaddedString(level, desc.numLevelDigits);
+				string yString = CreateZeroPaddedString(y, desc.numYDigits);
+
+				path /= levelString;
+				path /= yString;
+
+				string xString = CreateZeroPaddedString(x, desc.numXDigits);
+
+				string filename = xString + desc.fileExtension;
+				path /= filename;
+
+				if (!Image::LoadContentFromFile(path.string(), desc.cachedContentType, imageOut))
+				{
+					std::cout << "Tile Cache Error: reading from file failed: " << path << std::endl;
+					return false;
+				}
+				if (!utils::ConvertContentTypeToRawImage(*imageOut.get()))
+				{
+					std::cout << "Tile Cache Error: decompressing elevation failed" << std::endl;
 					return false;
 				}
 
@@ -383,12 +416,12 @@ namespace dw
 							}
 							catch (Poco::Exception& e) 
 							{
-								std::cout << "Tile Cache Error: " << e.displayText() << " ... retrying" << std::endl;
+								cout << "Tile Cache Error: " << e.displayText() << " ... retrying" << std::endl;
 								retry = true;
 							}
 							catch (...)
 							{
-								std::cout << "Tile Cache Error: " << "unknown error during tile retrieval ... retrying" << std::endl;
+								cout << "Tile Cache Error: " << "unknown error during tile retrieval ... retrying" << std::endl;
 								retry = true;
 							}
 						} 
@@ -400,6 +433,16 @@ namespace dw
 
 			void CreateTileCacheMipLevels()
 			{
+				if (desc.tilePaddingLeft != 0 || desc.tilePaddingTop != 0 || desc.tilePaddingRight != 0 || desc.tilePaddingBottom != 0)
+				{
+					cout << "Tile Cache Error: " << "Cannot create Mip Levels for Tile Cache with padding yet" << endl;
+					return;
+				}
+
+				Image emptyTile(0, 0, desc.dataType);
+
+				// All actions here are assumed to be done on disk locally. Therefore, any errors are fatal to the whole process of creating mip tiles.
+
 				int level = desc.numLevels - 1;
 				int numTilesX = desc.numTilesX;
 				int numTilesY = desc.numTilesY;
@@ -410,23 +453,75 @@ namespace dw
 					numTilesY /= 2;
 
 					const auto& fileStatus = levels.get()[level].fileStatus;
+					const auto& fileStatusHigherLOD = levels.get()[level + 1].fileStatus;
 
-					for (int y = 0; y < desc.numTilesY; y++)
+					const int numPixelsX = desc.tileWidth * 2;
+					const int numPixelsY = desc.tileHeight * 2;
+
+					for (int y = 0; y < numTilesY; y++)
 					{
+						cout << "Tile Cache Mip Level Generation: (Level: " << level << " Row: " << y << "/" << numTilesY << ")!" << "\r";
+
 						//#pragma omp parallel for
-						for (int x = 0; x < desc.numTilesX; x++)
+						for (int x = 0; x < numTilesX; x++)
 						{
 							if (fileStatus.get()[y * numTilesX + x] != FileStatus_Missing)
 							{
 								continue;
 							}
 
-							// TODO: create mip level image from four high level images
+							Image higherLevel(numPixelsX, numPixelsY, desc.dataType);
+							SetTypedMemory(higherLevel.rawData, desc.invalidValue.IsSet() ? desc.invalidValue : Variant((u32)0), higherLevel.width * higherLevel.height);
+
+							for (int sy = 0; sy < 2; sy++)
+							{
+								for (int sx = 0; sx < 2; sx++)
+								{
+									int higherLevelX = x * 2 + sx;
+									int higherLevelY = y * 2 + sy;
+									int higherLevelIndex = higherLevelY * (numTilesX * 2) + higherLevelX;
+
+									if (fileStatusHigherLOD.get()[higherLevelIndex] == FileStatus_Missing)
+									{
+										continue;
+									}
+
+									shared_ptr<Image> subImg;
+									if (!LoadTileFromDisk(subImg, higherLevelX, higherLevelY, level + 1))
+									{
+										return;
+									}
+
+									if (subImg.get()->width == 0)
+									{
+										continue;
+									}
+
+									higherLevel.CopyFromSubImage(*subImg.get(), desc.tileWidth * sx, desc.tileHeight * sy);
+								}
+							}
+
+							Image mipLevel(desc.tileWidth, desc.tileHeight, desc.dataType);
+							utils::SampleWithBoxFilter(higherLevel, mipLevel, desc.invalidValue);
+
+							if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(mipLevel, desc.invalidValue))
+							{
+								if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+								{
+									cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
+									return;
+								}
+							}
+							if (!StoreTileToDisk(mipLevel, x, y, level))
+							{
+								cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
+								return;
+							}
 						}
 					}
 				}
 			}
-		};
+			};
 
 		IMPLEMENT_WEBMAPTILESERVICE_LAYER(TileCache, "TileCache", "Can become a tile cache for any WMS layer");
 	}
