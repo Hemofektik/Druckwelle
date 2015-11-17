@@ -151,8 +151,8 @@ namespace dw
 				desc.srcHost = "localhost";
 				desc.srcPort = 8282;
 				desc.srcLayerName = "QualityElevation";
-				//desc.storagePath = "D:/QECache";
-				desc.storagePath = "E:/QECache";
+				desc.storagePath = "D:/QECache";
+				//desc.storagePath = "E:/QECache";
 				//desc.storagePath = "/home/rsc/Desktop/QECache";
 				desc.fileExtension = ".cem";
 
@@ -408,15 +408,23 @@ namespace dw
 
 								if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
 								{
-									if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+									if (StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+									{
+										fileStatus.get()[y * desc.numTilesX + x] = FileStatus_Empty;
+									}
+									else
 									{
 										retry = true;
 										continue;
 									}
 								}
-								else if (!StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
+								else if (StoreTileToDisk(tileImg, x, y, desc.numLevels - 1))
 								{
-									retry = true; 
+									fileStatus.get()[y * desc.numTilesX + x] = FileStatus_Exists;
+								}
+								else
+								{
+									retry = true;
 									continue;
 								}
 							}
@@ -449,10 +457,11 @@ namespace dw
 
 				// All actions here are assumed to be done on disk locally. Therefore, any errors are fatal to the whole process of creating mip tiles.
 
+				bool keepRunning = true;
 				int level = desc.numLevels - 1;
 				int numTilesX = desc.numTilesX;
 				int numTilesY = desc.numTilesY;
-				while (level > 0)
+				while (level > 0 && keepRunning)
 				{
 					level--;
 					numTilesX /= 2;
@@ -464,13 +473,18 @@ namespace dw
 					const int numPixelsX = desc.tileWidth * 2;
 					const int numPixelsY = desc.tileHeight * 2;
 
-					for (int y = 0; y < numTilesY; y++)
+					for (int y = 0; y < numTilesY && keepRunning; y++)
 					{
 						cout << "Tile Cache Mip Level Generation: (Level: " << level << " Row: " << y << "/" << numTilesY << ")!" << "\r";
 
 						//#pragma omp parallel for
 						for (int x = 0; x < numTilesX; x++)
 						{
+							if (!keepRunning)
+							{
+								break;
+							}
+
 							if (fileStatus.get()[y * numTilesX + x] != FileStatus_Missing)
 							{
 								continue;
@@ -487,7 +501,7 @@ namespace dw
 									int higherLevelY = y * 2 + sy;
 									int higherLevelIndex = higherLevelY * (numTilesX * 2) + higherLevelX;
 
-									if (fileStatusHigherLOD.get()[higherLevelIndex] == FileStatus_Missing)
+									if (fileStatusHigherLOD.get()[higherLevelIndex] != FileStatus_Exists)
 									{
 										continue;
 									}
@@ -495,7 +509,8 @@ namespace dw
 									shared_ptr<Image> subImg;
 									if (!LoadTileFromDisk(subImg, higherLevelX, higherLevelY, level + 1))
 									{
-										return;
+										keepRunning = false;
+										break;
 									}
 
 									if (subImg.get()->width == 0)
@@ -512,22 +527,32 @@ namespace dw
 
 							if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(mipLevel, desc.invalidValue))
 							{
-								if (!StoreTileToDisk(emptyTile, x, y, level))
+								if (StoreTileToDisk(emptyTile, x, y, level))
+								{
+									fileStatus.get()[y * numTilesX + x] = FileStatus_Empty;
+								}
+								else
 								{
 									cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
-									return;
+									keepRunning = false;
+									break;
 								}
 							}
-							else if (!StoreTileToDisk(mipLevel, x, y, level))
+							else if (StoreTileToDisk(mipLevel, x, y, level))
+							{
+								fileStatus.get()[y * numTilesX + x] = FileStatus_Exists;
+							}
+							else
 							{
 								cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
-								return;
+								keepRunning = false;
+								break;
 							}
 						}
 					}
 				}
 			}
-			};
+		};
 
 		IMPLEMENT_WEBMAPTILESERVICE_LAYER(TileCache, "TileCache", "Can become a tile cache for any WMS layer");
 	}
