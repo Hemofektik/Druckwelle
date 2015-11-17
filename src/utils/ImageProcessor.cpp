@@ -657,7 +657,7 @@ namespace dw
 				for (int x = 0; x < width; x++)
 				{
 					double value = 0.0;
-					int numBoxEntries = useInvalidValue ? boxWidth * boxHeight : 0;
+					int numBoxEntries = useInvalidValue ? 0 : boxWidth * boxHeight;
 
 					const T* source = &srcPixels[y * boxHeight * src.width + x * boxWidth];
 					for (int by = 0; by < boxHeight; by++)
@@ -681,11 +681,12 @@ namespace dw
 							source++;
 						}
 
-						source += src.width;
+						source += (src.width - boxWidth);
 					}
 
 					value = numBoxEntries > 0 ? (value / numBoxEntries) : invalidValue;
 					*dstPixels = (T)value;
+					dstPixels++;
 				}
 			}
 		}

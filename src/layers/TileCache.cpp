@@ -109,6 +109,7 @@ namespace dw
 				ContentType cachedContentType;
 				DataType dataType;
 				Variant invalidValue;
+				Variant defaultValue;
 
 				u32 numTilesX;
 				u32 numTilesY;
@@ -170,6 +171,7 @@ namespace dw
 				desc.cachedContentType = CT_Image_Elevation;
 				desc.dataType = DT_S16;
 				desc.invalidValue = Variant(InvalidValueASTER);
+				desc.defaultValue = Variant((s16)0);
 
 				desc.numTilesX = NumDstPixelsAlongLongitude / desc.tileWidth;
 				desc.numTilesY = NumDstPixelsAlongLatitude / desc.tileHeight;
@@ -178,6 +180,10 @@ namespace dw
 				desc.numXDigits = (u32)RoundUp(Log10<double>(desc.numTilesX));
 				desc.numYDigits = (u32)RoundUp(Log10<double>(desc.numTilesY));
 				desc.numLevelDigits = (u32)RoundUp(Log10<double>(desc.numLevels));
+
+				assert(desc.dataType != DT_Unknown);
+				assert(!desc.invalidValue.IsSet() || desc.dataType == desc.invalidValue.GetDataType());
+				assert(desc.defaultValue.IsSet() && desc.dataType == desc.defaultValue.GetDataType());
 			}
 
 			bool EnumerateFiles()
@@ -471,7 +477,7 @@ namespace dw
 							}
 
 							Image higherLevel(numPixelsX, numPixelsY, desc.dataType);
-							SetTypedMemory(higherLevel.rawData, desc.invalidValue.IsSet() ? desc.invalidValue : Variant((u32)0), higherLevel.width * higherLevel.height);
+							SetTypedMemory(higherLevel.rawData, desc.invalidValue.IsSet() ? desc.invalidValue : desc.defaultValue, higherLevel.width * higherLevel.height);
 
 							for (int sy = 0; sy < 2; sy++)
 							{
@@ -506,13 +512,13 @@ namespace dw
 
 							if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(mipLevel, desc.invalidValue))
 							{
-								if (!StoreTileToDisk(emptyTile, x, y, desc.numLevels - 1))
+								if (!StoreTileToDisk(emptyTile, x, y, level))
 								{
 									cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
 									return;
 								}
 							}
-							if (!StoreTileToDisk(mipLevel, x, y, level))
+							else if (!StoreTileToDisk(mipLevel, x, y, level))
 							{
 								cout << "Tile Cache Error: Mip level tile creation failed. (" << x << "," << y << ")!" << endl;
 								return;
