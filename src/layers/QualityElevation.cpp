@@ -1,10 +1,10 @@
 
 #include <vector>
-#include <mutex>
 #include <iostream>
 #include <iomanip>
 #include <memory>
 #include <chrono>
+#include <atomic>
 
 #include <ogr_api.h>
 #include <ogr_spatialref.h>
@@ -91,6 +91,8 @@ namespace Layers
 		const int AsterPixelsPerDegree = 3600;
 		const double AsterDegreesPerPixel = 1.0 / (double)AsterPixelsPerDegree;
 
+		shared_ptr<Image> southernmostLines; // southernmost ASTER data which is still valid (around 83° South)
+
 	public:
 
 		virtual bool Init(/* layerconfig */) override
@@ -131,8 +133,8 @@ namespace Layers
 			// load TOC from disk
 			//const path ASTERSourceDir("Z:/InnovationLab/ASTER/");
 			//const path ASTERSourceDir("C:/Dev/temp/ASTER/");
-			//const path ASTERSourceDir("D:/ASTER/");
-			const path ASTERSourceDir("/home/rsc/Desktop/ASTER/");
+			const path ASTERSourceDir("E:/ASTER/");
+			//const path ASTERSourceDir("/home/rsc/Desktop/ASTER/");
 
 			unique_ptr<u8> fileExists(new u8[NumASTERTilesX * 180]);
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
@@ -214,6 +216,83 @@ namespace Layers
 						tile.latitude = MissingTileCoordinate;
 						tile.longitude = MissingTileCoordinate;
 					}
+				}
+			}
+
+			// load bottom pixel lines of ASTER data to be able to fill the south pole gaps
+			{
+				const auto bottomLineCachePath = ASTERSourceDir / "_BottomLineCache.cem";
+				if (exists(bottomLineCachePath))
+				{
+					if (!Image::LoadContentFromFile(bottomLineCachePath.string(), CT_Image_Elevation, southernmostLines))
+					{
+						southernmostLines.reset((Image*)NULL);
+					}
+					if (!utils::ConvertContentTypeToRawImage(*southernmostLines.get()))
+					{
+						southernmostLines.reset((Image*)NULL);
+					}
+				}
+
+				if(!southernmostLines.get())
+				{
+					BBox asterBBox;
+					asterBBox.minX = -180.0;
+					asterBBox.maxX = 180.0;
+					asterBBox.minY = -90.0;
+					asterBBox.maxY = asterTileStartLatitude + 0.0001;
+					vector<ASTERTile*> southPoleAsterTiles;
+					southPoleAsterTiles.reserve(NumASTERTilesX);
+					int asterStartX, asterStartY, numAsterTilesX, numAsterTilesY;
+					GetASTERTiles(southPoleAsterTiles, asterBBox, asterStartX, asterStartY, numAsterTilesX, numAsterTilesY);
+
+					const int NumBottomLines = 16;
+					const int StartLine = AsterPixelsPerDegree - NumBottomLines + 1; // there is always one extra pixel row to overlap with next tile
+					southernmostLines.reset(new Image(NumASTERTilesX * AsterPixelsPerDegree, NumBottomLines, DT_S16));
+					SetTypedMemory((s16*)southernmostLines.get()->rawData, InvalidValueASTER, southernmostLines.get()->width * southernmostLines.get()->height);
+
+					bool success = true;
+					cout << endl;
+
+					const int numTiles = (int)southPoleAsterTiles.size();
+					atomic_int numTilesLoaded = 0;
+					#pragma omp parallel for
+					for (int t = 0; t < numTiles; t++)
+					{
+						const auto& tile = southPoleAsterTiles[t];
+
+						ASTERTileContent asterTileContent;
+						asterTileContent.pitchInPixels = southernmostLines.get()->width;
+
+						int x = (tile->longitude - asterStartX - AsterTileStartLongitude + NumASTERTilesX) % NumASTERTilesX;
+						int y = tile->latitude - asterStartY - asterTileStartLatitude;
+
+						int pixelOffset = ((numAsterTilesY - y - 1) * southernmostLines.get()->width + x) * AsterPixelsPerDegree * sizeof(s16);
+						asterTileContent.elevation = (s16*)&southernmostLines.get()->rawData[pixelOffset];
+
+						if (!LoadASTERTileContent(tile, asterTileContent, &StartLine))
+						{
+							southernmostLines.reset((Image*)NULL);
+							break;
+						}
+
+						numTilesLoaded++;
+						cout << "Loading southernmost ASTER Tiles: " << numTilesLoaded << "/" << numTiles << '\r';
+					}
+
+					if (southernmostLines.get())
+					{
+						if (ConvertRawImageToContentType(*southernmostLines.get(), CT_Image_Elevation))
+						{
+							southernmostLines.get()->SaveProcessedDataToFile(bottomLineCachePath.string());
+						}
+					}
+				}
+
+				if (!southernmostLines.get())
+				{
+					cout << "Quality Elevation Layer: " << "unable to load southernmost data" << endl;
+					return false;
 				}
 			}
 
@@ -302,7 +381,7 @@ namespace Layers
 			//delete[] content.quality;
 		}
 
-		bool LoadASTERTileContent(const ASTERTile* tile, ASTERTileContent& content)
+		bool LoadASTERTileContent(const ASTERTile* tile, ASTERTileContent& content, const int* firstLineIncl = NULL, const int* lastLineExcl = NULL)
 		{
 			GDALDataset* demDS = NULL;
 			//GDALDataset* numDS = NULL;
@@ -322,6 +401,15 @@ namespace Layers
 			content.width = demRasterBand->GetXSize();
 			content.height = demRasterBand->GetYSize();
 
+			if (firstLineIncl)
+			{
+				content.height -= *firstLineIncl;
+			}
+			if (lastLineExcl)
+			{
+				content.height -= demRasterBand->GetYSize() - *lastLineExcl;
+			}
+
 			if (content.elevation)
 			{
 				assert(content.pitchInPixels > 0);
@@ -337,9 +425,12 @@ namespace Layers
 			demRasterBand->GetBlockSize(&blockSizeX, &blockSizeY);
 			if (blockSizeX != content.width && blockSizeY != 1) goto err;
 
-			for (int y = 0; y < content.height; y++)
+			int startY = firstLineIncl ? *firstLineIncl : 0;
+			int endY = startY + (lastLineExcl ? *lastLineExcl : content.height);
+
+			for (int y = startY; y < endY; y++)
 			{
-				if (demRasterBand->ReadBlock(0, y, &content.elevation[y * content.pitchInPixels]) != CE_None)
+				if (demRasterBand->ReadBlock(0, y, &content.elevation[(y - startY) * content.pitchInPixels]) != CE_None)
 				{
 					goto err;
 				}
