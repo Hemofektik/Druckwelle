@@ -77,7 +77,8 @@ namespace Layers
 		};
 
 		map<string, OGRSpatialReference*> supportedCRS;
-		OGRSpatialReference* ASTER_EPSG;
+		OGRSpatialReference* ASTER_SpatRef;
+		OGRSpatialReference* SRTM_SpatRef;
 		map<SrcDestTransfromId, OGRCoordinateTransformation*> srsTransforms;
 
 		ASTERTile* asterTiles;
@@ -112,7 +113,8 @@ namespace Layers
 				}
 			}
 
-			ASTER_EPSG = supportedCRS["EPSG:4326"];
+			ASTER_SpatRef = supportedCRS["EPSG:4326"];
+			SRTM_SpatRef = supportedCRS["EPSG:4326"];
 
 			// create all possible SRS transformation permutations
 			for (auto it1 = supportedCRS.begin(); it1 != supportedCRS.end(); it1++)
@@ -370,7 +372,7 @@ namespace Layers
 			assert(img.rawDataType == DT_S16);
 
 			BBox asterBBox;
-			if (!TransformBBox(gmr.bbox, asterBBox, requestSRS, ASTER_EPSG))
+			if (!TransformBBox(gmr.bbox, asterBBox, requestSRS, ASTER_SpatRef))
 			{
 				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 			}
@@ -438,7 +440,15 @@ namespace Layers
 			st.offsetX = (asterBBox.minX - loadedBBox.minX) * AsterPixelsPerDegree;
 			st.offsetY = (loadedBBox.maxY - asterBBox.maxY) * AsterPixelsPerDegree;
 
+			BBox srtmBBox;
+			if (!TransformBBox(gmr.bbox, srtmBBox, requestSRS, SRTM_SpatRef))
+			{
+				return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
+			}
+
 			// TODO: fill up invalid values within sampling area with SRTMv4 data
+			// SRTMv4 starts at -180°;60° up to 180°;-60° in 5° steps
+			// if (srtmBBox overlaps with full SRTMBBOX) { fill the gaps... }
 
 			high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
