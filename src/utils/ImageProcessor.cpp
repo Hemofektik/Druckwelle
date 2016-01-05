@@ -93,6 +93,7 @@ namespace dw
 
 	void Image::FreeRawData()
 	{
+		assert(rawData != processedData);
 		if (ownsRawDataPointer)
 		{
 			delete[] rawData;

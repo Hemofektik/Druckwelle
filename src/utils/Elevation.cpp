@@ -17,78 +17,6 @@ namespace dw
 {
 	namespace utils
 	{
-		struct BigEndianU16
-		{
-			union
-			{
-				u16		value;
-				struct
-				{
-#ifdef LITTLE_ENDIAN
-					u8 l : 8;
-					u8 h : 8;
-#else
-					u8 h : 8;
-					u8 l : 8;
-#endif
-				};
-			};
-
-			BigEndianU16(u16 value) : value(value) {}
-			BigEndianU16(u8 ch1, u8 ch0)
-#ifdef LITTLE_ENDIAN
-				: l(ch0), h(ch1)
-#else
-				: h(ch1), l(ch0)
-#endif
-			{}
-		};
-
-		struct BigEndianU32
-		{
-			union
-			{
-				u32		value;
-				struct
-				{
-#ifdef LITTLE_ENDIAN
-					u8 b0 : 8;
-					u8 b1 : 8;
-					u8 b2 : 8;
-					u8 b3 : 8;
-#else
-					u8 b3 : 8;
-					u8 b2 : 8;
-					u8 b1 : 8;
-					u8 b0 : 8;
-#endif
-				};
-			};
-
-			BigEndianU32(u32 value) : value(value) {}
-			BigEndianU32(u8 ch3, u8 ch2, u8 ch1, u8 ch0)
-#ifdef LITTLE_ENDIAN
-				: b0(ch0), b1(ch1), b2(ch2), b3(ch3)
-#else
-				: b3(ch3), b2(ch2), b1(ch1), b0(ch0)
-#endif
-			{}
-
-			static BigEndianU32 MakeFourCC(u8 ch0, u8 ch1, u8 ch2, u8 ch3)
-			{
-				return BigEndianU32(ch0, ch1, ch2, ch3);
-			}
-
-			bool operator==(const BigEndianU32& other) const
-			{
-				return other.value == value;
-			}
-			bool operator!=(const BigEndianU32& other) const
-			{
-				return other.value != value;
-			}
-		};
-
 		static const BigEndianU32 CompressedElevationModelFourCC = BigEndianU32::MakeFourCC('C', 'E', 'M', 1);  // version 1
 
 		struct ElevationHeader
@@ -400,6 +328,29 @@ namespace dw
 			}
 
 			return true;
+		}
+
+		void ConvertBigEndianToLocalEndianness(Image& img)
+		{
+#if LITTLE_ENDIAN
+			switch (img.rawDataType)
+			{
+			case DT_S16:
+				{
+					s16* data = (s16*)img.rawData;
+					const s16* dataEnd = (s16*)(img.rawData + img.rawDataSize);
+					while (data < dataEnd)
+					{
+						*data = BigEndianU16::Swap(*data);
+						data++;
+					}
+					break;
+				}
+			default:
+				assert(false); // requested datatype not implemented yet, sorry
+				break;
+			}
+#endif
 		}
 	}
 }

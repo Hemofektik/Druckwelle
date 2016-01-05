@@ -142,32 +142,7 @@ namespace ZFXMath
 			TFixed result;
 
 			result.value = (T)( ( (Int64)value * (Int64)fx.value ) >> Fraction );
-/*
-			Int64 a = value;
-			Int64 b = fx.value;
-			const int fraction = Fraction;
-			const int invFraction = sizeof(T) * 8 - Fraction;
 
-			struct Int32x2
-			{
-#ifdef LITTLE_ENDIAN
-				int lo;
-				int hi;
-#else
-				int hi;
-				int lo;
-#endif
-			};
-
-			Int32x2* a2 = (Int32x2*)&a;
-			Int32x2* b2 = (Int32x2*)&b;
-
-			UInt64 rlo = (UInt64)a2->lo * (UInt64)b2->lo; 
-			Int32x2* rlo2 = (Int32x2*)&rlo;
-			Int64 rhi = ( (Int64)a2->hi * (Int64)b2->hi );
-
-			result.value = (T)( ( rhi << invFraction ) + ( rlo >> fraction ) );
-*/
 			return result;
 		}
 

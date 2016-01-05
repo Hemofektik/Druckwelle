@@ -30,7 +30,7 @@
 #define	_ZFXMATH_INCLUDE_ZFXMATH_H_
 
 #ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN
+#define LITTLE_ENDIAN 1
 #endif
 
 #include "ZFXTypes.h"

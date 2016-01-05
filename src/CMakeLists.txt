@@ -16,6 +16,7 @@ foreach(f ${SOURCES})
 endforeach()
 
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
+add_definitions( -DLITTLE_ENDIAN=1 )
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")

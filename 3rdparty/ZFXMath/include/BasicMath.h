@@ -852,7 +852,7 @@ namespace ZFXMath {
 			unsigned long	argb;
 			struct
 			{
-#ifdef LITTLE_ENDIAN
+#if	LITTLE_ENDIAN
 				unsigned char B : 8;
 				unsigned char G : 8;
 				unsigned char R : 8;
