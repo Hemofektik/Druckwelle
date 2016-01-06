@@ -37,7 +37,7 @@ namespace dw
 namespace Layers
 {
 	const string LayerName = "QualityElevation";
-	const string LayerTitle = "ASTER + SRTMv4 High Quality Elevation Service";
+	const string LayerTitle = "ASTER + SRTMv4 + Antarctic DEM; High Quality Elevation Service";
 	const string LayerAbstract =
 		"The native resolution of this layer is 1 arc second per pixel."
 		"A request's bounding box must not exceed 1° in width and height."
@@ -138,9 +138,22 @@ namespace Layers
 				ConvertContentTypeToRawImage(ad);
 				ad.width = 28680;
 				ad.height = 24580;
-				ad.rawPixelSize = DataTypePixelSize[DT_S16];
-
 				ConvertBigEndianToLocalEndianness(ad);
+
+				/*
+				// write file to disk to verify valid loading
+				auto gtiffDriver = GetGDALDriverManager()->GetDriverByName("GTiff");
+				auto dataSet = gtiffDriver->Create("E:/NSIDC-0082/ramp200dem_wgs_v2.bin.tiff", ad.width, ad.height, 1, GDT_Int16, NULL);
+				auto band = dataSet->GetRasterBand(1);
+				s16* data = (s16*)ad.rawData;
+				for (int y = 0; y < ad.height; y++)
+				{
+					band->WriteBlock(0, y, data);
+					data += ad.width;
+				}
+				GDALClose(dataSet);*/
+
+				// TODO: Create Lanczos sampling from antarctic data
 			}
 
 			// load TOC from disk

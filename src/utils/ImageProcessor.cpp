@@ -315,6 +315,7 @@ namespace dw
 
 				image.rawData = image.processedData;
 				image.rawDataSize = image.processedDataSize;
+				image.rawPixelSize = DataTypePixelSize[image.rawDataType];
 				return true;
 			case CT_Image_Elevation:
 			{

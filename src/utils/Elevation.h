@@ -37,7 +37,7 @@ namespace dw
 
 			static u16 Swap(u16 value)
 			{
-				u8 l = (u8)(value & 8);
+				u8 l = (u8)(value & 0xF);
 				u8 h = (u8)(value >> 8);
 				return (((u16)l) << 8) | h;
 			}
