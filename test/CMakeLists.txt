@@ -63,6 +63,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/stb
 	${CMAKE_SOURCE_DIR}/3rdparty/ZFXMath/include
 	${CMAKE_SOURCE_DIR}/3rdparty/shapelib
+	${CMAKE_SOURCE_DIR}/3rdparty/quadtree
 	${GDAL_INCLUDE_DIR}
 )
 
