@@ -35,6 +35,10 @@ bool TestSDFRasterizer()
 
 	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
 
+	const int GridX = 360;
+	const int GridY = 180;
+	vector<SHPObject*>* shape = new vector<SHPObject*>[GridX * GridY];
+
 	for (int n = 0; n < shpHandle->nRecords; n++)
 	{
 		SHPObject* shape = SHPReadObject(shpHandle, n);
@@ -46,13 +50,18 @@ bool TestSDFRasterizer()
 			return false;
 		}
 
-		for (int part = 0; part < shape->nParts; part++)
+		SHPComputeExtents(shape);
+
+
+
+		/*for (int part = 0; part < shape->nParts; part++)
 		{
 			int startIndex = shape->panPartStart[part];
-		}
-
-		SHPDestroyObject(shape);
+		}*/
 	}
+
+	//TODO: delete all shape objects ( SHPDestroyObject(shape) )
+	delete[] shape;
 
 	OGRCoordinateTransformation::DestroyCT(transform);
 	OGRSpatialReference::DestroySpatialReference(epsg3857);

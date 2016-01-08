@@ -1,0 +1,3 @@
+[submodule "3rdparty/quadtree"]
+	path = 3rdparty/quadtree
+	url = https://github.com/danshapero/quadtree.git
