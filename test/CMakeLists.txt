@@ -18,6 +18,10 @@ endforeach()
 set(ADDITIONAL_SOURCES 
 	${CMAKE_SOURCE_DIR}/src/utils/ImageProcessor.cpp
 	${CMAKE_SOURCE_DIR}/src/utils/Elevation.cpp
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shpopen.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shptree.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/dbfopen.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/safileio.c
 )
 
 foreach(f ${ADDITIONAL_SOURCES})
@@ -35,6 +39,7 @@ foreach(f ${ADDITIONAL_SOURCES})
 endforeach()
 
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
+add_definitions( -DLITTLE_ENDIAN=1 )
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -57,6 +62,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/cpplinq
 	${CMAKE_SOURCE_DIR}/3rdparty/stb
 	${CMAKE_SOURCE_DIR}/3rdparty/ZFXMath/include
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib
 	${GDAL_INCLUDE_DIR}
 )
 

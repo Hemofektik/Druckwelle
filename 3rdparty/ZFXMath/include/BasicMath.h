@@ -10,6 +10,7 @@
 #ifndef	_ZFXMATH_INCLUDE_BASICMATH_H_
 #define	_ZFXMATH_INCLUDE_BASICMATH_H_
 
+#include <stdint.h>
 #include <assert.h>
 
 /// \if DE

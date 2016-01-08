@@ -15,6 +15,28 @@ foreach(f ${SOURCES})
     source_group("${SRCGR}" FILES ${f})
 endforeach()
 
+set(ADDITIONAL_SOURCES 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shpopen.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shptree.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/dbfopen.c 
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/safileio.c
+)
+
+foreach(f ${ADDITIONAL_SOURCES})
+    # Get the path of the file relative to ${DIRECTORY},
+    # then alter it (not compulsory)
+    file(RELATIVE_PATH SRCGR ${CMAKE_SOURCE_DIR} ${f})
+    set(SRCGR "external/${SRCGR}")
+
+    # Extract the folder, ie remove the filename part
+    string(REGEX REPLACE "(.*)(/[^/]*)$" "\\1" SRCGR ${SRCGR})
+
+    # Source_group expects \\ (double antislash), not / (slash)
+    string(REPLACE / \\ SRCGR ${SRCGR})
+    source_group("${SRCGR}" FILES ${f})
+endforeach()
+
+
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 add_definitions( -DLITTLE_ENDIAN=1 )
 
@@ -39,6 +61,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/cpplinq
 	${CMAKE_SOURCE_DIR}/3rdparty/stb
 	${CMAKE_SOURCE_DIR}/3rdparty/ZFXMath/include
+	${CMAKE_SOURCE_DIR}/3rdparty/shapelib
 	${GDAL_INCLUDE_DIR}
 )
 
@@ -73,5 +96,6 @@ add_executable (
 #   WIN32 # Only if you don't want the DOS prompt to appear in the background in Windows
 #   MACOSX_BUNDLE
    ${SOURCES} # We could've listed the source files here directly instead of using a variable to store them
+   ${ADDITIONAL_SOURCES}  
    #${INCLUDES}
 )

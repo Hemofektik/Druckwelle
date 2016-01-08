@@ -73,5 +73,5 @@ bool TestElevationCompression()
 		return false;
 	}
 
-	return false;
+	return true;
 }
