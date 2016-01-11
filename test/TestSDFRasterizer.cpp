@@ -4,15 +4,35 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <vector>
 #include <shapefil.h>
 #include <ogr_spatialref.h>
-#include <quadtree.hpp>
+#include "../src/utils/Quadtree.h"
 
 using namespace ZFXMath;
 using namespace std;
 using namespace std::chrono;
 
 #define TestTag "TestSDFRasterizer - "
+
+
+class QuadtreeShape : public Quadtree<double>::Object
+{
+public:
+
+	SHPObject* shape;
+
+	QuadtreeShape(SHPObject* shape)
+		: Quadtree<double>::Object(shape->dfXMin, shape->dfYMin, shape->dfXMax - shape->dfXMin, shape->dfYMax - shape->dfYMin)
+		, shape(shape)
+	{
+	}
+
+	~QuadtreeShape()
+	{
+		SHPDestroyObject(shape);
+	}
+};
 
 bool TestSDFRasterizer()
 {
@@ -35,16 +55,8 @@ bool TestSDFRasterizer()
 	epsg3857->importFromEPSG(3857);
 
 	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
-
-	Point<2> center;
-	center[0] = 0.0;
-	center[1] = 0.0;
-	double halfRectWidth[2] = { 180.0, 90.0 };
-	Rectangle<2> rect(center, halfRectWidth);
-
-	vector<Point<2>> points;
-	QuadTree<2> qt(rect, points);
-	SHPObject** shapes = new SHPObject*[shpHandle->nRecords];
+	Quadtree<double> qt(-180.0, -90.0, 360.0, 180.0, 9);
+	vector<QuadtreeShape*> shapes(shpHandle->nRecords);
 
 	for (int n = 0; n < shpHandle->nRecords; n++)
 	{
@@ -58,8 +70,10 @@ bool TestSDFRasterizer()
 		}
 
 		SHPComputeExtents(shape);
+		auto newQTShape = new QuadtreeShape(shape);
+		shapes[n] = newQTShape;
 
-
+		qt.AddObject(newQTShape);
 
 		/*for (int part = 0; part < shape->nParts; part++)
 		{
@@ -67,8 +81,14 @@ bool TestSDFRasterizer()
 		}*/
 	}
 
-	//TODO: delete all shape objects ( SHPDestroyObject(shape) )
-	delete[] shapes;
+
+	vector<Quadtree<double>::Object*> intersectingObjects;
+	qt.GetObjectsAt(13.2, 52.0, intersectingObjects);
+
+	int numElements = intersectingObjects.size();
+
+
+	//TODO: delete all shape objects within shapes
 
 	OGRCoordinateTransformation::DestroyCT(transform);
 	OGRSpatialReference::DestroySpatialReference(epsg3857);

@@ -1,3 +1,0 @@
-[submodule "3rdparty/quadtree"]
-	path = 3rdparty/quadtree
-	url = https://github.com/veeableful/Quadtree_Minimal.git
