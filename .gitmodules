@@ -1,0 +1,3 @@
+[submodule "3rdparty/loose_quadtree"]
+	path = 3rdparty/loose_quadtree
+	url = https://github.com/gerazo/loose_quadtree.git

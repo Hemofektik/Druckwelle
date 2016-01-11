@@ -102,6 +102,10 @@ void Quadtree<T>::AddObject(Object *object) {
 		SE->AddObject(object); return;
 	}
 
+	if (level == 0) {
+		return;
+	}
+
 	objects.push_back(object);
 }
 
