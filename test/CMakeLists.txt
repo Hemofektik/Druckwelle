@@ -18,6 +18,7 @@ endforeach()
 set(ADDITIONAL_SOURCES 
 	${CMAKE_SOURCE_DIR}/src/utils/ImageProcessor.cpp
 	${CMAKE_SOURCE_DIR}/src/utils/Elevation.cpp
+	${CMAKE_SOURCE_DIR}/src/utils/Polysplit.cpp
 	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shpopen.c 
 	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shptree.c 
 	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/dbfopen.c 

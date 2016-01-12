@@ -37,11 +37,18 @@ public:
 	}
 };
 
+
+void SplitPolygons(const char* source_name, const char* dest_name);
 bool TestSDFRasterizer()
 {
 	GDALRegister_GTiff();
 
-	SHPHandle shpHandle = SHPOpen("../../test/coastline/processed_p.shp", "rb");
+	const char* coastlineShapeFileSrc = "../../test/coastline/processed_p.shp";
+	const char* coastlineShapeFileDst = "../../test/coastline/processed_p_split.shp";
+
+	SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
+
+	SHPHandle shpHandle = SHPOpen(coastlineShapeFileDst, "rb");
 	if (!shpHandle)
 	{
 		printf(TestTag "Unable to open shape file\n");
@@ -116,7 +123,6 @@ bool TestSDFRasterizer()
 			}
 		}
 	}
-
 
 	// write file to disk
 	{
