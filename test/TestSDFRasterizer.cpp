@@ -15,6 +15,7 @@
 #pragma warning (pop)
 
 #include <../src/dwcore.h>
+#include <../src/utils/Filesystem.h>
 
 using namespace ZFXMath;
 using namespace std;
@@ -46,7 +47,10 @@ bool TestSDFRasterizer()
 	const char* coastlineShapeFileSrc = "../../test/coastline/processed_p.shp";
 	const char* coastlineShapeFileDst = "../../test/coastline/processed_p_split.shp";
 
-	SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
+	if (!exists(coastlineShapeFileDst))
+	{
+		SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
+	}
 
 	SHPHandle shpHandle = SHPOpen(coastlineShapeFileDst, "rb");
 	if (!shpHandle)
@@ -84,6 +88,11 @@ bool TestSDFRasterizer()
 		SHPComputeExtents(shape);
 		shapes[n] = shape;
 
+		if (n % 10000 == 0)
+		{
+			std::cerr << "shapes transformed: " << n << " / " << shpHandle->nRecords << "\r";
+		}
+
 		qt.Insert(shape);
 	}
 
@@ -110,7 +119,7 @@ bool TestSDFRasterizer()
 					SHPObject* shape = query.GetCurrent();
 
 					(*world) = 255;
-				
+
 					/*for (int part = 0; part < shape->nParts; part++)
 					{
 						int startIndex = shape->panPartStart[part];
@@ -121,6 +130,8 @@ bool TestSDFRasterizer()
 
 				world++;
 			}
+
+			std::cerr << "rasterized: " << (int)(100.0f * y / (float)Height) << "%s\r";
 		}
 	}
 

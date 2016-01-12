@@ -20,7 +20,7 @@
 #pragma warning (pop)
 
 
-#define MAXVERTICES 20
+#define MAXVERTICES 100
 #define OUTPUTDRIVER "ESRI Shapefile"
 #define OUTPUTTYPE wkbPolygon
 #define IDFIELD "id"
@@ -28,7 +28,6 @@
 typedef std::vector<OGRPolygon *> OGRPolyList;
 typedef GIntBig feature_id_t;
 
-static bool debug = false;
 
 void split_polygons(OGRPolyList *pieces, OGRGeometry* geometry, int max_vertices) {
 	/* split_polygons recursively splits the (multi)polygon into smaller
@@ -72,9 +71,8 @@ void split_polygons(OGRPolyList *pieces, OGRGeometry* geometry, int max_vertices
 
 	bool polygonIsPwned = false;
 	if (!polygon->IsValid() || !polygon->IsSimple()) {
-		return; // TODO: fix GDAL to be built with GEOS library and reenable this code
-		//polygon = (OGRPolygon*)polygon->Buffer(0); // try to tidy it up
-		//polygonIsPwned = true; // now we own the reference and have to free it later		
+		polygon = (OGRPolygon*)polygon->Buffer(0); // try to tidy it up
+		polygonIsPwned = true; // now we own the reference and have to free it later		
 	}
 
 	OGRPoint centroid;
@@ -241,8 +239,11 @@ void SplitPolygons(const char* source_name, const char* dest_name)
 		}
 
 		features_read++;
-		if (debug)
+
+		if (features_read % 100 == 0)
+		{
 			std::cerr << features_read << " / " << total << "\r";
+		}
 
 		OGRFeature::DestroyFeature(feature);
 	}
