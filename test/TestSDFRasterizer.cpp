@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <ogr_spatialref.h>
 #include <LooseQuadtree.h>
+#include <omp.h>
 
 #pragma warning (push)
 #pragma warning (disable:4251)
@@ -43,6 +44,18 @@ public:
 		bb->height = aabb.MaxY - aabb.MinY;
 	}
 };
+
+
+double ComputeSqrDistanceToBoundingBox(OGRPoint* point, BoundingBox<double>& aabb)
+{
+	const double clampedX = min(max(point->getX(), aabb.left), aabb.left + aabb.width);
+	const double clampedY = min(max(point->getY(), aabb.top), aabb.top + aabb.height);
+
+	const double deltaX = clampedX - point->getX();
+	const double deltaY = clampedY - point->getY();
+
+	return deltaX * deltaX + deltaY * deltaY;
+}
 
 
 void SplitPolygons(const char* source_name, const char* dest_name);
@@ -114,6 +127,7 @@ bool TestSDFRasterizer()
 		const double cellSize = 360.0 / Width;
 		const double ScaledDistanceDomain = cellSize * DistanceDomain;
 
+		//#pragma omp parallel for
 		for (int y = 0; y < Height; y++)
 		{
 			u8* world = &worldImg[(Height - y - 1) * Width];
@@ -124,7 +138,7 @@ bool TestSDFRasterizer()
 
 				BoundingBox<double> bb(
 					x * cellSize - 180.0 - ScaledDistanceDomain,
-					y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain, cellSize + ScaledDistanceDomain);
+					y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain * 2.0, cellSize + ScaledDistanceDomain * 2.0);
 				double minDistance = numeric_limits<double>::max();
 
 				auto pointGeo = (OGRPoint*)OGRGeometryFactory::createGeometry(wkbPoint);
@@ -136,14 +150,20 @@ bool TestSDFRasterizer()
 				{
 					OGRFeature* feature = query.GetCurrent();
 
-					double distance = feature->GetGeometryRef()->Distance(pointGeo);
-					if (distance <= 0.0)
+					BoundingBox<double> aabb(0,0,0,0);
+					BoundingBoxExtractor::ExtractBoundingBox(feature, &aabb);
+
+					const double aabbDistanceSqr = ComputeSqrDistanceToBoundingBox(pointGeo, aabb);
+					if (aabbDistanceSqr < minDistance * minDistance) // test distance to AABB first before doing the expensive polygon distance test
 					{
-						distance = 5.0;
-						// TODO: compute signed distance
-					}
-					else
-					{
+						double distance = feature->GetGeometryRef()->Distance(pointGeo);
+
+						if (distance <= 0.0)
+						{
+							distance = ScaledDistanceDomain;
+							// TODO: compute signed distance
+						}
+
 						minDistance = min(minDistance, distance);
 					}
 
