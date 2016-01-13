@@ -16,10 +16,7 @@ foreach(f ${SOURCES})
 endforeach()
 
 set(ADDITIONAL_SOURCES 
-	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shpopen.c 
-	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shptree.c 
-	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/dbfopen.c 
-	${CMAKE_SOURCE_DIR}/3rdparty/shapelib/safileio.c
+	#${CMAKE_SOURCE_DIR}/3rdparty/shapelib/shpopen.c
 )
 
 foreach(f ${ADDITIONAL_SOURCES})

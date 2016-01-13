@@ -5,13 +5,16 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
-#include <shapefil.h>
+#include <algorithm>
 #include <ogr_spatialref.h>
 #include <LooseQuadtree.h>
 
 #pragma warning (push)
 #pragma warning (disable:4251)
 #include <gdal_priv.h>
+#include <ogr_api.h>
+#include <ogr_geometry.h>
+#include <ogrsf_frmts.h>
 #pragma warning (pop)
 
 #include <../src/dwcore.h>
@@ -29,12 +32,15 @@ using namespace dw;
 class BoundingBoxExtractor
 {
 public:
-	static void ExtractBoundingBox(SHPObject* shape, BoundingBox<double>* bb)
+	static void ExtractBoundingBox(OGRFeature* feature, BoundingBox<double>* bb)
 	{
-		bb->left = shape->dfXMin;
-		bb->top = shape->dfYMin;
-		bb->width = shape->dfXMax - shape->dfXMin;
-		bb->height = shape->dfYMax - shape->dfYMin;
+		OGREnvelope aabb;
+		feature->GetGeometryRef()->getEnvelope(&aabb);
+
+		bb->left = aabb.MinX;
+		bb->top = aabb.MinY;
+		bb->width = aabb.MaxX - aabb.MinX;
+		bb->height = aabb.MaxY - aabb.MinY;
 	}
 };
 
@@ -52,18 +58,18 @@ bool TestSDFRasterizer()
 		SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
 	}
 
-	SHPHandle shpHandle = SHPOpen(coastlineShapeFileDst, "rb");
-	if (!shpHandle)
+	RegisterOGRShape();
+	auto driver = OGRGetDriverByName("ESRI Shapefile");
+	OGRDataSource* source = (OGRDataSource*)OGROpen(coastlineShapeFileDst, GA_ReadOnly, &driver);
+	if (!source)
 	{
 		printf(TestTag "Unable to open shape file\n");
 		return false;
 	}
 
-	if (shpHandle->nShapeType != SHPT_POLYGON)
-	{
-		printf(TestTag "Invalid ShapeType: Shapefile does not contain POLYGONs\n");
-		return false;
-	}
+	OGRLayer* srcLayer = source->GetLayer(0);
+	GIntBig numFeatures = srcLayer->GetFeatureCount();
+	srcLayer->ResetReading();
 
 	auto epsg4326 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
 	auto epsg3857 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
@@ -71,39 +77,43 @@ bool TestSDFRasterizer()
 	epsg3857->importFromEPSG(3857);
 
 	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
-	LooseQuadtree<double, SHPObject, BoundingBoxExtractor> qt;
-	vector<SHPObject*> shapes(shpHandle->nRecords);
+	LooseQuadtree<double, OGRFeature, BoundingBoxExtractor> qt;
+	vector<OGRFeature*> features(numFeatures);
 
-	for (int n = 0; n < shpHandle->nRecords; n++)
+	GIntBig featureIndex = 0;
+	OGRFeature* feature;
+	while ((feature = srcLayer->GetNextFeature()) != NULL) 
 	{
-		SHPObject* shape = SHPReadObject(shpHandle, n);
+		OGRGeometry* geometry = feature->GetGeometryRef();
+		OGRErr error = geometry->transform(transform);
 
-		bool success = (transform->Transform(shape->nVertices, shape->padfX, shape->padfY) == TRUE);
-		if (!success)
+		if (error != OGRERR_NONE)
 		{
 			printf(TestTag "Shape Coordinate Transform failed\n");
 			return false;
 		}
 
-		SHPComputeExtents(shape);
-		shapes[n] = shape;
-
-		if (n % 10000 == 0)
+		if (featureIndex % 10000 == 0)
 		{
-			std::cerr << "shapes transformed: " << n << " / " << shpHandle->nRecords << "\r";
+			std::cerr << "shapes transformed: " << featureIndex << " / " << numFeatures << "\r";
 		}
 
-		qt.Insert(shape);
+		qt.Insert(feature);
+		features[featureIndex] = feature;
+
+		featureIndex++;
 	}
 
-	const int Width = 3600;
-	const int Height = 1800;
+	const int Width = 360;
+	const int Height = 180;
 	u8* worldImg = new u8[Width * Height];
 
 	// raster image
 	{
-		double cellSizeX = 360.0 / Width;
-		double cellSizeY = 180.0 / Height;
+		const double DistanceDomain = 10.0;
+		const double cellSize = 360.0 / Width;
+		const double ScaledDistanceDomain = cellSize * DistanceDomain;
+
 		for (int y = 0; y < Height; y++)
 		{
 			u8* world = &worldImg[(Height - y - 1) * Width];
@@ -112,21 +122,44 @@ bool TestSDFRasterizer()
 			{
 				*world = 0;
 
-				BoundingBox<double> bb(x * cellSizeX - 180.0, y * cellSizeY - 90.0, cellSizeX, cellSizeY);
+				BoundingBox<double> bb(
+					x * cellSize - 180.0 - ScaledDistanceDomain,
+					y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain, cellSize + ScaledDistanceDomain);
+				double minDistance = numeric_limits<double>::max();
+
+				auto pointGeo = (OGRPoint*)OGRGeometryFactory::createGeometry(wkbPoint);
+				pointGeo->setX(bb.left + bb.width * 0.5);
+				pointGeo->setY(bb.top + bb.height * 0.5);
+
 				auto query = qt.QueryIntersectsRegion(bb);
 				while (!query.EndOfQuery())
 				{
-					SHPObject* shape = query.GetCurrent();
+					OGRFeature* feature = query.GetCurrent();
 
-					(*world) = 255;
-
-					/*for (int part = 0; part < shape->nParts; part++)
+					double distance = feature->GetGeometryRef()->Distance(pointGeo);
+					if (distance <= 0.0)
 					{
-						int startIndex = shape->panPartStart[part];
-					}*/
+						distance = 5.0;
+						// TODO: compute signed distance
+					}
+					else
+					{
+						minDistance = min(minDistance, distance);
+					}
 
 					query.Next();
 				}
+
+				if (minDistance == numeric_limits<double>::max())
+				{
+					(*world) = 255;
+				}
+				else
+				{
+					(*world) = (u8)min(255.0, (255.0 * (minDistance / ScaledDistanceDomain)));
+				}
+
+				OGRGeometryFactory::destroyGeometry(pointGeo);
 
 				world++;
 			}
@@ -155,18 +188,18 @@ bool TestSDFRasterizer()
 
 	delete[] worldImg;
 
-	const size_t numShapes = shapes.size();
+	const size_t numShapes = features.size();
 	for (size_t n = 0; n < numShapes; n++)
 	{
-		SHPDestroyObject(shapes[n]);
+		OGRFeature::DestroyFeature(feature);
 	}
-	shapes.clear();
+	features.clear();
 
 	OGRCoordinateTransformation::DestroyCT(transform);
 	OGRSpatialReference::DestroySpatialReference(epsg3857);
 	OGRSpatialReference::DestroySpatialReference(epsg4326);
 
-	SHPClose(shpHandle);
+	OGRDataSource::DestroyDataSource(source);
 
 	return true;
 }
