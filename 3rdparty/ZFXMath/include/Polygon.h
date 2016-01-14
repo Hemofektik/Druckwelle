@@ -9,20 +9,33 @@ namespace ZFXMath
 	template<typename T>
 	struct TPolygon2D
 	{
+	public:
+
 	private:
+
+		struct Edge
+		{
+			TVector2D<T> center;
+			TVector2D<T> direction;
+			T			 extent;
+		};
+
 		TVector2D<T>*	m_vertex;
+		Edge*			m_edge;
 		int				m_vertexCount;
 
 	public:
 
 		TPolygon2D() :
 		m_vertex(NULL),
+		m_edge(NULL),
 		m_vertexCount(0)
 		{}
 
 		~TPolygon2D() 
 		{
 			delete[] m_vertex;
+			delete[] m_edge;
 		}
 
 		void AddVertex( const TVector2D<T>& v )
@@ -40,7 +53,6 @@ namespace ZFXMath
 			m_vertexCount++;
 		}
 
-
 		void SetVertex( int index, const TVector2D<T>& v )
 		{
 			assert( index >= 0 && index < m_vertexCount );
@@ -48,6 +60,32 @@ namespace ZFXMath
 			m_vertex[index] = v;
 		}
 
+		void CloseRing()
+		{
+			const TVector2D<T>& firstVertex = m_vertex[0];
+			const TVector2D<T>& lastVertex = m_vertex[m_vertexCount - 1];
+
+			const TVector2D<T> delta = firstVertex - lastVertex;
+
+			if (delta.x == 0 && delta.y == 0)
+			{
+				m_vertexCount--; // "deletes" last vertex
+			}
+
+			delete[] m_edge;
+			const int numEdges = GetNumEdges();
+			m_edge = new Edge[numEdges];
+			for (int n = 0; n < numEdges; n++)
+			{
+				auto& v0 = m_vertex[n];
+				auto& v1 = m_vertex[(n < m_vertexCount - 1) ? n + 1 : 0];
+
+				Edge& edge = m_edge[n];
+				edge.center = ((T)0.5) * (v0 + v1);
+				edge.direction = v1 - v0;
+				edge.extent = ((T)0.5) * edge.direction.Normalize();
+			}
+		}
 
 		void SetNumVertices( int numVertices )
 		{
@@ -90,6 +128,24 @@ namespace ZFXMath
 			return ( numCrossingEdges & 1 ) ? INSIDE : OUTSIDE;
 		}
 
+		T ComputeSqrDistance(const TVector2D<T>& v, /*out*/ bool& pointIsRightOfEdge) const
+		{
+			T minSqrDistance = numeric_limits<T>::max();
+			bool minDistancePointIsRightOfEdge = false;
+			for (int n = 0; n < GetNumEdges(); n++)
+			{
+				bool pointIsRightOfTestEdge = false;
+				T sqrDistance = SqrDistanceToEdge(v, n, pointIsRightOfTestEdge);
+				if (sqrDistance < minSqrDistance)
+				{
+					minSqrDistance = sqrDistance;
+					minDistancePointIsRightOfEdge = pointIsRightOfTestEdge;
+				}
+			}
+
+			pointIsRightOfEdge = minDistancePointIsRightOfEdge;
+			return minSqrDistance;
+		}
 
 		// assumes that the polygon is convex
 		void Split( int edgeIndex, T lerp, TPolygon2D<T>& newPolygon0, TPolygon2D<T>& newPolygon1 ) const
@@ -200,6 +256,16 @@ namespace ZFXMath
 			return m_vertexCount;
 		}
 
+		const TVector2D<T>* GetVertices() const
+		{
+			return m_vertex;
+		}
+
+		TVector2D<T>* GetVertices()
+		{
+			return m_vertex;
+		}
+
 		const TVector2D<T>& GetVertex(int index) const
 		{
 			assert( index >= 0 && index < m_vertexCount );
@@ -220,6 +286,37 @@ namespace ZFXMath
 		}
 
 	private:
+
+		double SqrDistanceToEdge(const TVector2D<T>& point, int edgeIndex, /*out*/ bool& pointIsRightOfEdge) const
+		{
+			const Edge& edge = m_edge[edgeIndex];
+
+			TVector2D<T> diff = point - edge.center;
+			T segmentParameter = edge.direction.DotProduct(diff);
+			TVector2D<T> segmentClosestPoint;
+			if (-edge.extent < segmentParameter)
+			{
+				if (segmentParameter < edge.extent)
+				{
+					segmentClosestPoint = edge.center + segmentParameter * edge.direction;
+				}
+				else
+				{
+					segmentClosestPoint = edge.center + edge.extent * edge.direction; // TODO: = v1
+				}
+			}
+			else
+			{
+				segmentClosestPoint = edge.center - edge.extent * edge.direction; // TODO: = v0
+			}
+
+			diff = point - segmentClosestPoint;
+			T sqrDistance = diff.DotProduct(diff);
+
+			pointIsRightOfEdge = edge.direction.GetOrthogonal().DotProduct(diff) >= 0.0;
+
+			return sqrDistance;
+		}
 
         bool IntersectsLineRay( TVector2D<T> linePoint1, TVector2D<T> linePoint2,
                                 TVector2D<T> rayOrigin,  TVector2D<T> rayDir, TVector2D<T>& intersection) const

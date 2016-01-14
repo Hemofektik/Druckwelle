@@ -30,32 +30,89 @@ using namespace dw;
 #define TestTag "TestSDFRasterizer - "
 
 
+class Polygon
+{
+public:
+	GIntBig id;
+	TPolygon2D<double>* polygons;
+	int numPolygons;
+	BoundingBox<double> aabb;
+
+	Polygon(OGRFeature* src)
+		: id(src->GetFID())
+		, polygons(NULL)
+		, numPolygons(0)
+		, aabb(0, 0, 0, 0)
+	{
+		auto poly = (OGRPolygon*)src->GetGeometryRef();
+
+		// get AABB
+		{
+			OGREnvelope env;
+			poly->getEnvelope(&env);
+
+			aabb.left = env.MinX;
+			aabb.top = env.MinY;
+			aabb.width = env.MaxX - env.MinX;
+			aabb.height = env.MaxY - env.MinY;
+		}
+
+		// create outer perimeter
+		{
+			numPolygons = poly->getNumInteriorRings() + 1;
+			polygons = new TPolygon2D<double>[numPolygons];
+
+			auto ring = poly->getExteriorRing();
+			polygons[0].SetNumVertices(ring->getNumPoints());
+			auto vertices = polygons[0].GetVertices();
+			ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
+			polygons[0].CloseRing();
+		}
+
+		// create inner holes
+		{
+			for (int p = 0; p < poly->getNumInteriorRings(); p++)
+			{
+				auto ring = poly->getInteriorRing(p);
+				polygons[p + 1].SetNumVertices(ring->getNumPoints());
+				auto vertices = polygons[p + 1].GetVertices();
+				ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
+				polygons[p + 1].CloseRing();
+			}
+		}
+	}
+
+	double ComputeSqrDistanceToBoundingBox(double x, double y) const 
+	{
+		const double clampedX = min(max(x, aabb.left), aabb.left + aabb.width);
+		const double clampedY = min(max(y, aabb.top), aabb.top + aabb.height);
+
+		const double deltaX = clampedX - x;
+		const double deltaY = clampedY - y;
+
+		return deltaX * deltaX + deltaY * deltaY;
+	}
+
+	double ComputeSignedSquareDistance(double x, double y) const
+	{
+		bool pointIsRightOfEdge = false;
+		double sqrDistance = polygons[0].ComputeSqrDistance(TVector2D<double>(x, y), pointIsRightOfEdge);
+		return /*pointIsRightOfEdge ? -sqrDistance :*/ sqrDistance;
+
+		// TODO: include interior polygons as well
+	}
+};
+
 class BoundingBoxExtractor
 {
 public:
-	static void ExtractBoundingBox(OGRFeature* feature, BoundingBox<double>* bb)
+	static void ExtractBoundingBox(Polygon* poly, BoundingBox<double>* bb)
 	{
-		OGREnvelope aabb;
-		feature->GetGeometryRef()->getEnvelope(&aabb);
-
-		bb->left = aabb.MinX;
-		bb->top = aabb.MinY;
-		bb->width = aabb.MaxX - aabb.MinX;
-		bb->height = aabb.MaxY - aabb.MinY;
+		*bb = poly->aabb;
 	}
 };
 
 
-double ComputeSqrDistanceToBoundingBox(OGRPoint* point, BoundingBox<double>& aabb)
-{
-	const double clampedX = min(max(point->getX(), aabb.left), aabb.left + aabb.width);
-	const double clampedY = min(max(point->getY(), aabb.top), aabb.top + aabb.height);
-
-	const double deltaX = clampedX - point->getX();
-	const double deltaY = clampedY - point->getY();
-
-	return deltaX * deltaX + deltaY * deltaY;
-}
 
 
 void SplitPolygons(const char* source_name, const char* dest_name);
@@ -90,8 +147,8 @@ bool TestSDFRasterizer()
 	epsg3857->importFromEPSG(3857);
 
 	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
-	LooseQuadtree<double, OGRFeature, BoundingBoxExtractor> qt;
-	vector<OGRFeature*> features(numFeatures);
+	LooseQuadtree<double, Polygon, BoundingBoxExtractor> qt;
+	vector<Polygon*> polygons(numFeatures);
 
 	GIntBig featureIndex = 0;
 	OGRFeature* feature;
@@ -111,8 +168,12 @@ bool TestSDFRasterizer()
 			std::cerr << "shapes transformed: " << featureIndex << " / " << numFeatures << "\r";
 		}
 
-		qt.Insert(feature);
-		features[featureIndex] = feature;
+		auto poly = new Polygon(feature);
+
+		qt.Insert(poly);
+		polygons[featureIndex] = poly;
+
+		OGRFeature::DestroyFeature(feature);
 
 		featureIndex++;
 	}
@@ -139,43 +200,36 @@ bool TestSDFRasterizer()
 				BoundingBox<double> bb(
 					x * cellSize - 180.0 - ScaledDistanceDomain,
 					y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain * 2.0, cellSize + ScaledDistanceDomain * 2.0);
-				double minDistance = numeric_limits<double>::max();
+				double minSqrDistance = numeric_limits<double>::max();
 
 				auto pointGeo = (OGRPoint*)OGRGeometryFactory::createGeometry(wkbPoint);
-				pointGeo->setX(bb.left + bb.width * 0.5);
-				pointGeo->setY(bb.top + bb.height * 0.5);
+				double px = bb.left + bb.width * 0.5;
+				double py = bb.top + bb.height * 0.5;
 
 				auto query = qt.QueryIntersectsRegion(bb);
 				while (!query.EndOfQuery())
 				{
-					OGRFeature* feature = query.GetCurrent();
+					Polygon* poly = query.GetCurrent();
 
-					BoundingBox<double> aabb(0,0,0,0);
-					BoundingBoxExtractor::ExtractBoundingBox(feature, &aabb);
-
-					const double aabbDistanceSqr = ComputeSqrDistanceToBoundingBox(pointGeo, aabb);
-					if (aabbDistanceSqr < minDistance * minDistance) // test distance to AABB first before doing the expensive polygon distance test
+					const double aabbDistanceSqr = poly->ComputeSqrDistanceToBoundingBox(px, py);
+					if (aabbDistanceSqr < minSqrDistance) // test distance to AABB first before doing the expensive polygon distance test
 					{
-						double distance = feature->GetGeometryRef()->Distance(pointGeo);
-
-						if (distance <= 0.0)
-						{
-							distance = ScaledDistanceDomain;
-							// TODO: compute signed distance
-						}
-
-						minDistance = min(minDistance, distance);
+						double sqrDistance = poly->ComputeSignedSquareDistance(px, py);
+						minSqrDistance = min(minSqrDistance, sqrDistance);
 					}
+
+					if (minSqrDistance < 0.0) break;
 
 					query.Next();
 				}
 
-				if (minDistance == numeric_limits<double>::max())
+				if (minSqrDistance == numeric_limits<double>::max())
 				{
 					(*world) = 255;
 				}
 				else
 				{
+					double minDistance = Sqrt(max(0.0, minSqrDistance));
 					(*world) = (u8)min(255.0, (255.0 * (minDistance / ScaledDistanceDomain)));
 				}
 
@@ -208,12 +262,12 @@ bool TestSDFRasterizer()
 
 	delete[] worldImg;
 
-	const size_t numShapes = features.size();
+	const size_t numShapes = polygons.size();
 	for (size_t n = 0; n < numShapes; n++)
 	{
-		OGRFeature::DestroyFeature(feature);
+		delete polygons[n];
 	}
-	features.clear();
+	polygons.clear();
 
 	OGRCoordinateTransformation::DestroyCT(transform);
 	OGRSpatialReference::DestroySpatialReference(epsg3857);

@@ -220,22 +220,19 @@ void SplitPolygons(const char* source_name, const char* dest_name)
 	srcLayer->ResetReading();
 
 	while ((feature = srcLayer->GetNextFeature()) != NULL) {
-		/* Make an empty parts list, and get the ID and geometry from the
-		* input. */
+		// Make an empty parts list, and get the ID and geometry from the input.
 		OGRPolyList pieces;
 
 		feature_id_t id = (id_field >= 0 ? feature->GetFieldAsInteger(id_field)
 			: feature->GetFID());
 		OGRGeometry *geometry = feature->GetGeometryRef();
 
-		/* Recursively split the geometry, and write a new feature for each
-		* polygon that comes out. */
+		// Recursively split the geometry, and write a new feature for each polygon that comes out.
 		split_polygons(&pieces, geometry, max_vertices);
 		for (OGRPolyList::iterator it = pieces.begin(); it != pieces.end(); it++) {
 			write_feature(destLayer, *it, id);
 			features_written++;
-			/* We don't have to destroy each piece because write_feature calls
-			* SetGeometryDirectly. */
+			// We don't have to destroy each piece because write_feature calls SetGeometryDirectly.
 		}
 
 		features_read++;
@@ -252,6 +249,5 @@ void SplitPolygons(const char* source_name, const char* dest_name)
 	OGRDataSource::DestroyDataSource(source);
 	OGRDataSource::DestroyDataSource(dest);
 
-	std::cerr << features_read << " features read, "
-		<< features_written << " written.\n";
+	std::cerr << features_read << " features read, " << features_written << " written.\n";
 }

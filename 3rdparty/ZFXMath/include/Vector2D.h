@@ -158,7 +158,7 @@ namespace ZFXMath
 		/// \else
 		/// @brief Square of the length
 		/// \endif
-		T LengthSqr()
+		T LengthSqr() const
 		{
 			return DotProduct( *this );
 		};
@@ -168,7 +168,7 @@ namespace ZFXMath
 		/// \else
 		/// @brief length of the vector
 		/// \endif
-		T Length()
+		T Length() const
 		{
 			return Sqrt( LengthSqr() );
 		};
@@ -178,15 +178,19 @@ namespace ZFXMath
 		///
 		/// Vektor wird normalisiert
 		/// d.h. er wird auf die Länge 1 skaliert
+		/// Gibt die ursprüngliche Länge des Vektors zurück
 		/// \else
 		/// @brief Normalizes the vector
 		///
 		/// Vector gets normalized
 		/// i.e. it gets scaled to length of 1
+		/// Returns the original length
 		/// \endif
-		void Normalize()
+		T Normalize()
 		{
-			(*this) /= Length();
+			T length = Length();
+			(*this) /= length;
+			return length;
 		};
 
 		/// \if DE
@@ -260,7 +264,7 @@ namespace ZFXMath
 			return *this;
 		};
 
-		TVector2D GetOrthogonal()
+		TVector2D GetOrthogonal() const
 		{
 			return TVector2D( y, -x );
 		};
