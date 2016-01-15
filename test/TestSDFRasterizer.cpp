@@ -97,7 +97,7 @@ public:
 	{
 		bool pointIsRightOfEdge = false;
 		double sqrDistance = polygons[0].ComputeSqrDistance(TVector2D<double>(x, y), pointIsRightOfEdge);
-		return /*pointIsRightOfEdge ? -sqrDistance :*/ sqrDistance;
+		return pointIsRightOfEdge ? -sqrDistance : sqrDistance;
 
 		// TODO: include interior polygons as well
 	}
@@ -178,8 +178,8 @@ bool TestSDFRasterizer()
 		featureIndex++;
 	}
 
-	const int Width = 360;
-	const int Height = 180;
+	const int Width = 3600;
+	const int Height = 1800;
 	u8* worldImg = new u8[Width * Height];
 
 	// raster image
@@ -229,8 +229,8 @@ bool TestSDFRasterizer()
 				}
 				else
 				{
-					double minDistance = Sqrt(max(0.0, minSqrDistance));
-					(*world) = (u8)min(255.0, (255.0 * (minDistance / ScaledDistanceDomain)));
+					double minDistance = Sign(minSqrDistance) * Sqrt(Abs(minSqrDistance));
+					(*world) = (u8)min(255.0, (255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5)));
 				}
 
 				OGRGeometryFactory::destroyGeometry(pointGeo);

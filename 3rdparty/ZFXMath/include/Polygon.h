@@ -21,6 +21,7 @@ namespace ZFXMath
 		};
 
 		TVector2D<T>*	m_vertex;
+		TVector2D<T>*	m_normal;
 		Edge*			m_edge;
 		int				m_vertexCount;
 
@@ -28,6 +29,7 @@ namespace ZFXMath
 
 		TPolygon2D() :
 		m_vertex(NULL),
+			m_normal(NULL),
 		m_edge(NULL),
 		m_vertexCount(0)
 		{}
@@ -35,6 +37,7 @@ namespace ZFXMath
 		~TPolygon2D() 
 		{
 			delete[] m_vertex;
+			delete[] m_normal;
 			delete[] m_edge;
 		}
 
@@ -60,18 +63,24 @@ namespace ZFXMath
 			m_vertex[index] = v;
 		}
 
+		// removes latest vertex if it is equal to the first vertex
+		// creates normal and edge information needed for any call to ComputeSqrDistance
 		void CloseRing()
 		{
-			const TVector2D<T>& firstVertex = m_vertex[0];
-			const TVector2D<T>& lastVertex = m_vertex[m_vertexCount - 1];
-
-			const TVector2D<T> delta = firstVertex - lastVertex;
-
-			if (delta.x == 0 && delta.y == 0)
+			// "delete" last vertex if it is a duplicate of the first one
 			{
-				m_vertexCount--; // "deletes" last vertex
+				const TVector2D<T>& firstVertex = m_vertex[0];
+				const TVector2D<T>& lastVertex = m_vertex[m_vertexCount - 1];
+
+				const TVector2D<T> delta = firstVertex - lastVertex;
+
+				if (delta.x == 0 && delta.y == 0)
+				{
+					m_vertexCount--;
+				}
 			}
 
+			// create edges
 			delete[] m_edge;
 			const int numEdges = GetNumEdges();
 			m_edge = new Edge[numEdges];
@@ -81,9 +90,22 @@ namespace ZFXMath
 				auto& v1 = m_vertex[(n < m_vertexCount - 1) ? n + 1 : 0];
 
 				Edge& edge = m_edge[n];
-				edge.center = ((T)0.5) * (v0 + v1);
+				edge.center = (v0 + v1) * (T)0.5;
 				edge.direction = v1 - v0;
-				edge.extent = ((T)0.5) * edge.direction.Normalize();
+				edge.extent = edge.direction.Normalize() * (T)0.5;
+			}
+
+			// compute normals
+			delete[] m_normal;
+			const int numNormals = GetNumEdges();
+			m_normal = new TVector2D<double>[m_vertexCount];
+			for (int n = 0; n < m_vertexCount; n++)
+			{
+				auto& e0 = m_edge[(n > 0) ? n - 1 : m_vertexCount - 1];
+				auto& e1 = m_edge[n];
+
+				m_normal[n] = -(e0.direction + e1.direction).GetOrthogonal();
+				m_normal[n].Normalize();
 			}
 		}
 
@@ -294,26 +316,32 @@ namespace ZFXMath
 			TVector2D<T> diff = point - edge.center;
 			T segmentParameter = edge.direction.DotProduct(diff);
 			TVector2D<T> segmentClosestPoint;
+			TVector2D<T> segmentClosestPointNormal;
 			if (-edge.extent < segmentParameter)
 			{
 				if (segmentParameter < edge.extent)
 				{
 					segmentClosestPoint = edge.center + segmentParameter * edge.direction;
+					segmentClosestPointNormal = -edge.direction.GetOrthogonal();
 				}
 				else
 				{
-					segmentClosestPoint = edge.center + edge.extent * edge.direction; // TODO: = v1
+					// Vertex 1 of Edge
+					segmentClosestPoint = m_vertex[(edgeIndex < m_vertexCount - 1) ? edgeIndex + 1 : 0];
+					segmentClosestPointNormal = m_normal[(edgeIndex < m_vertexCount - 1) ? edgeIndex + 1 : 0];
 				}
 			}
 			else
 			{
-				segmentClosestPoint = edge.center - edge.extent * edge.direction; // TODO: = v0
+				// Vertex 0 of Edge
+				segmentClosestPoint = m_vertex[edgeIndex];
+				segmentClosestPointNormal = m_normal[edgeIndex];
 			}
 
 			diff = point - segmentClosestPoint;
 			T sqrDistance = diff.DotProduct(diff);
 
-			pointIsRightOfEdge = edge.direction.GetOrthogonal().DotProduct(diff) >= 0.0;
+			pointIsRightOfEdge = segmentClosestPointNormal.DotProduct(diff) < 0.0;
 
 			return sqrDistance;
 		}
