@@ -9,6 +9,7 @@
 #include <ogr_spatialref.h>
 #include <LooseQuadtree.h>
 #include <omp.h>
+#include <atomic>
 
 #pragma warning (push)
 #pragma warning (disable:4251)
@@ -147,7 +148,8 @@ bool TestSDFRasterizer()
 	epsg3857->importFromEPSG(3857);
 
 	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
-	LooseQuadtree<double, Polygon, BoundingBoxExtractor> qt;
+	typedef LooseQuadtree<double, Polygon, BoundingBoxExtractor> LooseGeoQuadtree;
+	LooseGeoQuadtree qt;
 	vector<Polygon*> polygons(numFeatures);
 
 	GIntBig featureIndex = 0;
@@ -188,7 +190,11 @@ bool TestSDFRasterizer()
 		const double cellSize = 360.0 / Width;
 		const double ScaledDistanceDomain = cellSize * DistanceDomain;
 
-		//#pragma omp parallel for
+		omp_lock_t myLock;
+		omp_init_lock(&myLock);
+		atomic_int yProgress = 0;
+
+		#pragma omp parallel for
 		for (int y = 0; y < Height; y++)
 		{
 			u8* world = &worldImg[(Height - y - 1) * Width];
@@ -206,7 +212,10 @@ bool TestSDFRasterizer()
 				double px = bb.left + bb.width * 0.5;
 				double py = bb.top + bb.height * 0.5;
 
-				auto query = qt.QueryIntersectsRegion(bb);
+				omp_set_lock(&myLock);
+				LooseGeoQuadtree::Query query = qt.QueryIntersectsRegion(bb);
+				omp_unset_lock(&myLock);
+
 				while (!query.EndOfQuery())
 				{
 					Polygon* poly = query.GetCurrent();
@@ -238,7 +247,8 @@ bool TestSDFRasterizer()
 				world++;
 			}
 
-			std::cerr << "rasterized: " << (int)(100.0f * y / (float)Height) << "%s\r";
+			yProgress++;
+			std::cerr << "rasterized: " << (int)(100.0f * yProgress / (float)Height) << "%s\r";
 		}
 	}
 
