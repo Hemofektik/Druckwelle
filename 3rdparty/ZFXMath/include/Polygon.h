@@ -29,7 +29,7 @@ namespace ZFXMath
 
 		TPolygon2D() :
 		m_vertex(NULL),
-			m_normal(NULL),
+		m_normal(NULL),
 		m_edge(NULL),
 		m_vertexCount(0)
 		{}
@@ -150,18 +150,24 @@ namespace ZFXMath
 			return ( numCrossingEdges & 1 ) ? INSIDE : OUTSIDE;
 		}
 
-		T ComputeSqrDistance(const TVector2D<T>& v, /*out*/ bool& pointIsRightOfEdge) const
+		T ComputeSqrDistance(const TVector2D<T>& v, /*out*/ bool& pointIsRightOfEdge, /*out*/ TVector2D<T>* closestPoint = NULL) const
 		{
 			T minSqrDistance = numeric_limits<T>::max();
 			bool minDistancePointIsRightOfEdge = false;
+			TVector2D<T> closestPointLocal;
+			TVector2D<T>* pClosestPointLocal = closestPoint ? &closestPointLocal : NULL;
 			for (int n = 0; n < GetNumEdges(); n++)
 			{
 				bool pointIsRightOfTestEdge = false;
-				T sqrDistance = SqrDistanceToEdge(v, n, pointIsRightOfTestEdge);
+				T sqrDistance = SqrDistanceToEdge(v, n, pointIsRightOfTestEdge, pClosestPointLocal);
 				if (sqrDistance < minSqrDistance)
 				{
 					minSqrDistance = sqrDistance;
 					minDistancePointIsRightOfEdge = pointIsRightOfTestEdge;
+					if (closestPoint)
+					{
+						*closestPoint = closestPointLocal;
+					}
 				}
 			}
 
@@ -309,7 +315,7 @@ namespace ZFXMath
 
 	private:
 
-		double SqrDistanceToEdge(const TVector2D<T>& point, int edgeIndex, /*out*/ bool& pointIsRightOfEdge) const
+		double SqrDistanceToEdge(const TVector2D<T>& point, int edgeIndex, /*out*/ bool& pointIsRightOfEdge, /*out*/ TVector2D<T>* closestPoint = NULL) const
 		{
 			const Edge& edge = m_edge[edgeIndex];
 
@@ -321,7 +327,7 @@ namespace ZFXMath
 			{
 				if (segmentParameter < edge.extent)
 				{
-					segmentClosestPoint = edge.center + segmentParameter * edge.direction;
+					segmentClosestPoint = edge.center + edge.direction * segmentParameter;
 					segmentClosestPointNormal = -edge.direction.GetOrthogonal();
 				}
 				else
@@ -342,6 +348,10 @@ namespace ZFXMath
 			T sqrDistance = diff.DotProduct(diff);
 
 			pointIsRightOfEdge = segmentClosestPointNormal.DotProduct(diff) < 0.0;
+			if (closestPoint)
+			{
+				*closestPoint = segmentClosestPoint;
+			}
 
 			return sqrDistance;
 		}

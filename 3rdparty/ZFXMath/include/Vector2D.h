@@ -151,7 +151,7 @@ namespace ZFXMath
 		TVector2D operator * ( const T& v ) const { return TVector2D( x * v, y * v ); }
 		TVector2D operator / ( const T& v ) const { return TVector2D( x / v, y / v ); }
 		friend TVector2D<T> operator * ( const T& val, const TVector2D<T>& vec )
-		{ return (TVector2D) ( vec.x * val, vec.y * val ); }
+		{ return TVector2D( vec.x * val, vec.y * val ); }
 
 		/// \if DE
 		/// @brief Quadrat der Länge des Vektors

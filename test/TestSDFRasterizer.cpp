@@ -33,6 +33,7 @@ using namespace dw;
 
 class Polygon
 {
+
 public:
 	GIntBig id;
 	TPolygon2D<double>* polygons;
@@ -100,8 +101,9 @@ public:
 		double sqrDistance = polygons[0].ComputeSqrDistance(TVector2D<double>(x, y), pointIsRightOfEdge);
 		return pointIsRightOfEdge ? -sqrDistance : sqrDistance;
 
-		// TODO: include interior polygons as well
+		// TODO: test against interior polygons as well
 	}
+
 };
 
 class BoundingBoxExtractor
@@ -115,7 +117,7 @@ public:
 
 
 
-
+//#pragma optimize( "", off )
 void SplitPolygons(const char* source_name, const char* dest_name);
 bool TestSDFRasterizer()
 {
@@ -227,7 +229,10 @@ bool TestSDFRasterizer()
 						minSqrDistance = min(minSqrDistance, sqrDistance);
 					}
 
-					if (minSqrDistance < 0.0) break;
+					if (minSqrDistance < 0.0)
+					{
+						break;
+					}
 
 					query.Next();
 				}
@@ -239,7 +244,8 @@ bool TestSDFRasterizer()
 				else
 				{
 					double minDistance = Sign(minSqrDistance) * Sqrt(Abs(minSqrDistance));
-					(*world) = (u8)min(255.0, (255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5)));
+					u8 worldValue = (u8)min(255.0, (255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5)));
+					(*world) = worldValue;
 				}
 
 				OGRGeometryFactory::destroyGeometry(pointGeo);
