@@ -1,3 +1,6 @@
 [submodule "3rdparty/loose_quadtree"]
 	path = 3rdparty/loose_quadtree
 	url = https://github.com/gerazo/loose_quadtree.git
+[submodule "3rdparty/libconfig"]
+	path = 3rdparty/libconfig
+	url = https://github.com/Hemofektik/libconfig.git

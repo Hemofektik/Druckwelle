@@ -98,12 +98,22 @@ public:
 	double ComputeSignedSquareDistance(double x, double y) const
 	{
 		bool pointIsRightOfEdge = false;
-		double sqrDistance = polygons[0].ComputeSqrDistance(TVector2D<double>(x, y), pointIsRightOfEdge);
-		return pointIsRightOfEdge ? -sqrDistance : sqrDistance;
+		TVector2D<double> point(x, y);
+		double sqrDistance = polygons[0].ComputeSqrDistance(point, pointIsRightOfEdge);
 
-		// TODO: test against interior polygons as well
+		for (int p = 1; p < numPolygons; p++)
+		{
+			bool pointIsRightOfInnerEdge = false;
+			double innerSqrDistance = polygons[p].ComputeSqrDistance(point, pointIsRightOfInnerEdge);
+			if (innerSqrDistance < sqrDistance)
+			{
+				sqrDistance = innerSqrDistance;
+				pointIsRightOfEdge = pointIsRightOfInnerEdge;
+			}
+		}
+
+		return pointIsRightOfEdge ? -sqrDistance : sqrDistance;		
 	}
-
 };
 
 class BoundingBoxExtractor
@@ -123,63 +133,74 @@ bool TestSDFRasterizer()
 {
 	GDALRegister_GTiff();
 
-	const char* coastlineShapeFileSrc = "../../test/coastline/processed_p.shp";
-	const char* coastlineShapeFileDst = "../../test/coastline/processed_p_split.shp";
+	const char* coastlineShapeFileSrc = "../../test/coastline/land_polygons.shp";
+	const char* coastlineShapeFileDst = "../../test/coastline/land_polygons_split.shp";
 
 	if (!exists(coastlineShapeFileDst))
 	{
 		SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
 	}
 
-	RegisterOGRShape();
-	auto driver = OGRGetDriverByName("ESRI Shapefile");
-	OGRDataSource* source = (OGRDataSource*)OGROpen(coastlineShapeFileDst, GA_ReadOnly, &driver);
-	if (!source)
-	{
-		printf(TestTag "Unable to open shape file\n");
-		return false;
-	}
-
-	OGRLayer* srcLayer = source->GetLayer(0);
-	GIntBig numFeatures = srcLayer->GetFeatureCount();
-	srcLayer->ResetReading();
-
-	auto epsg4326 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
-	auto epsg3857 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
-	epsg4326->importFromEPSG(4326);
-	epsg3857->importFromEPSG(3857);
-
-	OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
 	typedef LooseQuadtree<double, Polygon, BoundingBoxExtractor> LooseGeoQuadtree;
 	LooseGeoQuadtree qt;
-	vector<Polygon*> polygons(numFeatures);
+	vector<Polygon*> polygons;
 
-	GIntBig featureIndex = 0;
-	OGRFeature* feature;
-	while ((feature = srcLayer->GetNextFeature()) != NULL) 
+	// load shape file
 	{
-		OGRGeometry* geometry = feature->GetGeometryRef();
-		OGRErr error = geometry->transform(transform);
-
-		if (error != OGRERR_NONE)
+		RegisterOGRShape();
+		auto driver = OGRGetDriverByName("ESRI Shapefile");
+		OGRDataSource* source = (OGRDataSource*)OGROpen(coastlineShapeFileDst, GA_ReadOnly, &driver);
+		if (!source)
 		{
-			printf(TestTag "Shape Coordinate Transform failed\n");
+			printf(TestTag "Unable to open shape file\n");
 			return false;
 		}
 
-		if (featureIndex % 10000 == 0)
+		OGRLayer* srcLayer = source->GetLayer(0);
+		GIntBig numFeatures = srcLayer->GetFeatureCount();
+		srcLayer->ResetReading();
+
+		//auto epsg4326 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
+		//auto epsg3857 = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
+		//epsg4326->importFromEPSG(4326);
+		//epsg3857->importFromEPSG(3857);
+		//OGRCoordinateTransformation* transform = OGRCreateCoordinateTransformation(epsg3857, epsg4326);
+
+		polygons.reserve(numFeatures);
+
+		GIntBig featureIndex = 0;
+		OGRFeature* feature;
+		while ((feature = srcLayer->GetNextFeature()) != NULL) 
 		{
-			std::cerr << "shapes transformed: " << featureIndex << " / " << numFeatures << "\r";
+			OGRGeometry* geometry = feature->GetGeometryRef();
+		
+			/*OGRErr error = geometry->transform(transform);
+			if (error != OGRERR_NONE)
+			{
+				printf(TestTag "Shape Coordinate Transform failed\n");
+				return false;
+			}*/
+
+			if (featureIndex % 10000 == 0)
+			{
+				std::cerr << "shapes loaded: " << featureIndex << " / " << numFeatures << "\r";
+			}
+
+			auto poly = new Polygon(feature);
+
+			qt.Insert(poly);
+			polygons[featureIndex] = poly;
+
+			OGRFeature::DestroyFeature(feature);
+
+			featureIndex++;
 		}
 
-		auto poly = new Polygon(feature);
+		//OGRCoordinateTransformation::DestroyCT(transform);
+		//OGRSpatialReference::DestroySpatialReference(epsg3857);
+		//OGRSpatialReference::DestroySpatialReference(epsg4326);
 
-		qt.Insert(poly);
-		polygons[featureIndex] = poly;
-
-		OGRFeature::DestroyFeature(feature);
-
-		featureIndex++;
+		OGRDataSource::DestroyDataSource(source);
 	}
 
 	const int Width = 3600;
@@ -210,7 +231,6 @@ bool TestSDFRasterizer()
 					y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain * 2.0, cellSize + ScaledDistanceDomain * 2.0);
 				double minSqrDistance = numeric_limits<double>::max();
 
-				auto pointGeo = (OGRPoint*)OGRGeometryFactory::createGeometry(wkbPoint);
 				double px = bb.left + bb.width * 0.5;
 				double py = bb.top + bb.height * 0.5;
 
@@ -244,11 +264,9 @@ bool TestSDFRasterizer()
 				else
 				{
 					double minDistance = Sign(minSqrDistance) * Sqrt(Abs(minSqrDistance));
-					u8 worldValue = (u8)min(255.0, (255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5)));
+					u8 worldValue = (u8)Clamp(255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5), 0.0, 255.0);
 					(*world) = worldValue;
 				}
-
-				OGRGeometryFactory::destroyGeometry(pointGeo);
 
 				world++;
 			}
@@ -284,12 +302,6 @@ bool TestSDFRasterizer()
 		delete polygons[n];
 	}
 	polygons.clear();
-
-	OGRCoordinateTransformation::DestroyCT(transform);
-	OGRSpatialReference::DestroySpatialReference(epsg3857);
-	OGRSpatialReference::DestroySpatialReference(epsg4326);
-
-	OGRDataSource::DestroyDataSource(source);
 
 	return true;
 }

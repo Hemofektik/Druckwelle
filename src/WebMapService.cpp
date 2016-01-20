@@ -9,6 +9,8 @@
 
 #include "WebMapService.h"
 
+#include <ogr_api.h>
+#include <ogr_spatialref.h>
 
 #include "utils/ImageProcessor.h"
 #include "utils/Capabilities.h"
@@ -67,7 +69,7 @@ namespace dw
 			Layer* newLayer = layerDesc.createLayer();
 
 			cout << "WebMapService: Loading layer: " << layerDesc.name << '\r';
-			if (newLayer->Init(/* layerconfig */))
+			if (newLayer->InitBase(/* layerconfig */) && newLayer->Init(/* layerconfig */))
 			{
 				layers[layerDesc.name] = newLayer;
 				wcout << "WebMapService: Activated layer: " << newLayer->GetTitle() << endl;
@@ -218,4 +220,82 @@ namespace dw
 		return HandleGetMapRequest(connection, layers, contentType, gmr);
 	}
 
+	bool WebMapService::Layer::InitBase(/* layerconfig */)
+	{
+		supportedCRS =
+		{
+			//pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
+			pair<string, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
+		};
+
+		for (auto it = supportedCRS.begin(); it != supportedCRS.end(); it++)
+		{
+			int epsgCode = atoi(it->first.c_str() + 5);
+			OGRErr err = it->second->importFromEPSG(epsgCode);
+			if (err == OGRERR_UNSUPPORTED_SRS)
+			{
+				cout << "WebMapService::Layer: " << "requested EPSG Code is unsupported:" << epsgCode << endl;
+				return false;
+			}
+		}
+
+		// create all possible SRS transformation permutations
+		for (auto it1 = supportedCRS.begin(); it1 != supportedCRS.end(); it1++)
+		{
+			for (auto it2 = it1; it2 != supportedCRS.end(); it2++)
+			{
+				if (it2 == supportedCRS.end()) break;
+
+				CreateTransform(it1->second, it2->second);
+				CreateTransform(it2->second, it1->second);
+			}
+		}
+
+		return true;
+	}
+
+	bool WebMapService::Layer::TransformBBox(
+		const BBox& srcBBox, BBox& dstBBox,
+		const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const
+	{
+		bool success = true;
+		auto transform = GetTransform(srcSRS, dstSRS);
+		if (transform)
+		{
+			double x[2] = { srcBBox.minX, srcBBox.maxX };
+			double y[2] = { srcBBox.minY, srcBBox.maxY };
+			success = transform->Transform(2, x, y) == TRUE;
+			dstBBox.minX = x[0];
+			dstBBox.minY = y[0];
+			dstBBox.maxX = x[1];
+			dstBBox.maxY = y[1];
+		}
+		else
+		{
+			memcpy(&dstBBox, &srcBBox, sizeof(BBox));
+		}
+		return success;
+	}
+
+	OGRCoordinateTransformation* WebMapService::Layer::GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const
+	{
+		SrcDestTransfromId transId;
+		transId.src = src;
+		transId.dst = dst;
+
+		auto transform = srsTransforms.find(transId);
+		return transform->second;
+	}
+
+	void WebMapService::Layer::CreateTransform(OGRSpatialReference* src, OGRSpatialReference* dst)
+	{
+		SrcDestTransfromId transId;
+		transId.src = src;
+		transId.dst = dst;
+
+		auto existingTransform = srsTransforms.find(transId);
+		if (existingTransform != srsTransforms.end()) return;
+
+		srsTransforms[transId] = (src == dst) ? NULL : OGRCreateCoordinateTransformation(src, dst);
+	}
 }

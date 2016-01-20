@@ -45,17 +45,6 @@ namespace Layers
 
 	class QualityElevation : public WebMapService::Layer
 	{
-		struct SrcDestTransfromId
-		{
-			const OGRSpatialReference* src;
-			const OGRSpatialReference* dst;
-
-			bool operator< (const QualityElevation::SrcDestTransfromId& other) const
-			{
-				return memcmp(this, &other, sizeof(QualityElevation::SrcDestTransfromId)) < 0;
-			}
-		};
-
 		struct ASTERTile
 		{
 			int longitude;
@@ -76,11 +65,9 @@ namespace Layers
 			double geoTransform[6];
 		};
 
-		map<string, OGRSpatialReference*> supportedCRS;
 		OGRSpatialReference* ASTER_SpatRef;
 		OGRSpatialReference* SRTM_SpatRef;
-		map<SrcDestTransfromId, OGRCoordinateTransformation*> srsTransforms;
-
+		
 		ASTERTile* asterTiles;
 		int asterTileStartLatitude;
 		int asterTileEndLatitude;
@@ -97,35 +84,13 @@ namespace Layers
 		{
 			GDALRegister_GTiff();
 
-			supportedCRS =
-			{
-				//pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
-				pair<string, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
-			};
-
-			for (auto it = supportedCRS.begin(); it != supportedCRS.end(); it++)
-			{
-				int epsgCode = atoi(it->first.c_str() + 5);
-				OGRErr err = it->second->importFromEPSG(epsgCode);
-				if (err == OGRERR_UNSUPPORTED_SRS)
-				{
-					return false;
-				}
-			}
-
 			ASTER_SpatRef = supportedCRS["EPSG:4326"];
 			SRTM_SpatRef = supportedCRS["EPSG:4326"];
 
-			// create all possible SRS transformation permutations
-			for (auto it1 = supportedCRS.begin(); it1 != supportedCRS.end(); it1++)
+			if (!ASTER_SpatRef)
 			{
-				for (auto it2 = it1; it2 != supportedCRS.end(); it2++)
-				{
-					if (it2 == supportedCRS.end()) break;
-
-					CreateTransform(it1->second, it2->second);
-					CreateTransform(it2->second, it1->second);
-				}
+				cout << "Quality Elevation Layer: " << "CRS support for EPSG:4326 is mandatory" << endl;
+				return false;
 			}
 
 			// load antarctic data
@@ -133,7 +98,11 @@ namespace Layers
 				const path antarcticDataPath("E:/NSIDC-0082/ramp200dem_wgs_v2.bin");
 
 				shared_ptr<Image> antarcticData;
-				Image::LoadContentFromFile(antarcticDataPath.string(), CT_Image_Raw_S16, antarcticData);
+				if (!Image::LoadContentFromFile(antarcticDataPath.string(), CT_Image_Raw_S16, antarcticData))
+				{
+					cout << "Quality Elevation Layer: " << "unable to load arctic data: " << antarcticDataPath << endl;
+					return false;
+				}
 				Image& ad = *antarcticData.get();
 				ConvertContentTypeToRawImage(ad);
 				ad.width = 28680;
@@ -507,53 +476,6 @@ namespace Layers
 
 			return result;
 		}
-
-		bool TransformBBox(
-			const BBox& srcBBox, BBox& dstBBox,
-			const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const
-		{
-			bool success = true;
-			auto transform = GetTransform(srcSRS, dstSRS);
-			if (transform)
-			{
-				double x[2] = { srcBBox.minX, srcBBox.maxX };
-				double y[2] = { srcBBox.minY, srcBBox.maxY };
-				success = transform->Transform(2, x, y) == TRUE;
-				dstBBox.minX = x[0];
-				dstBBox.minY = y[0];
-				dstBBox.maxX = x[1];
-				dstBBox.maxY = y[1];
-			}
-			else
-			{
-				memcpy(&dstBBox, &srcBBox, sizeof(BBox));
-			}
-			return success;
-		}
-
-		// TODO: this should go into utils or base layer
-		OGRCoordinateTransformation* GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const
-		{
-			SrcDestTransfromId transId;
-			transId.src = src;
-			transId.dst = dst;
-
-			auto transform = srsTransforms.find(transId);
-			return transform->second;
-		}
-
-		void CreateTransform(OGRSpatialReference* src, OGRSpatialReference* dst)
-		{
-			SrcDestTransfromId transId;
-			transId.src = src;
-			transId.dst = dst;
-
-			auto existingTransform = srsTransforms.find(transId);
-			if (existingTransform != srsTransforms.end()) return;
-
-			srsTransforms[transId] = (src == dst) ? NULL : OGRCreateCoordinateTransformation(src, dst);
-		}
-
 
 		void GetASTERTiles(vector<ASTERTile*>& asterTilesTouched, const BBox& asterBBox, int& startX, int& startY, int& numTilesX, int& numTilesY)
 		{

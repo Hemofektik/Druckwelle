@@ -6,6 +6,9 @@
 #include <vector>
 #include <map>
 
+class OGRSpatialReference;
+class OGRCoordinateTransformation;
+
 namespace dw
 {
 	class WebMapService
@@ -25,6 +28,30 @@ namespace dw
 
 		class Layer
 		{
+		protected:
+			
+			struct SrcDestTransfromId
+			{
+				const OGRSpatialReference* src;
+				const OGRSpatialReference* dst;
+
+				bool operator< (const SrcDestTransfromId& other) const
+				{
+					return memcmp(this, &other, sizeof(SrcDestTransfromId)) < 0;
+				}
+			};
+
+			std::map<string, OGRSpatialReference*> supportedCRS;
+			std::map<SrcDestTransfromId, OGRCoordinateTransformation*> srsTransforms;
+
+			bool TransformBBox(
+				const BBox& srcBBox, BBox& dstBBox,
+				const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const;
+
+		private: 
+			void CreateTransform(OGRSpatialReference* src, OGRSpatialReference* dst);
+			OGRCoordinateTransformation* GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const;
+
 		public:
 
 			enum HandleGetMapRequestResult
@@ -39,7 +66,8 @@ namespace dw
 
 			virtual ~Layer() {};
 
-			virtual bool Init(/* layerconfig */) { return true; };  // return true on successful init
+			virtual bool InitBase(/* layerconfig */);  // return true on successful init
+			virtual bool Init(/* layerconfig */) { return true; }  // return true on successful init
  			virtual const char* GetName() const = 0;				// computer readable name (unique identification)
 			virtual const char_t* GetTitle() const = 0;				// human readable name
 			virtual const char_t* GetAbstract()  const { return NULL; };
