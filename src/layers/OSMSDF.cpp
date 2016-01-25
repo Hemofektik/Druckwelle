@@ -148,7 +148,7 @@ namespace dw
 		{
 			OGRSpatialReference* OSM_SpatRef;
 
-			LooseGeoQuadtree qt;
+			LooseGeoQuadtree landPolyQuadtree;
 			vector<Polygon*> landPolygons;
 		public:
 
@@ -255,9 +255,13 @@ namespace dw
 				const int Height = img.height;
 
 				const double DistanceDomain = 10.0;
-				const double cellSize = 360.0 / Width;
+				const double cellSize = (gmr.bbox.maxX - gmr.bbox.minX) / Width;
 				const double ScaledDistanceDomain = cellSize * DistanceDomain;
 
+				// TODO: add locks for landPolyQuadtree.QueryIntersectsRegion(bb); to support concurrent GetMapRequests
+
+				// OpenMP cannot be used here at the moment because this method could be called
+				// concurrently and omp_lock_t is only working on a single OMP Context
 				//omp_lock_t myLock;
 				//omp_init_lock(&myLock);
 				atomic_int yProgress = 0;
@@ -265,22 +269,24 @@ namespace dw
 				//#pragma omp parallel for
 				for (int y = 0; y < Height; y++)
 				{
-					u8* world = &img.rawData[(Height - y - 1) * Width];
+					u8* sdf = &img.rawData[(Height - y - 1) * Width];
 
 					for (int x = 0; x < Width; x++)
 					{
-						*world = 0;
+						*sdf = 0;
 
-						BoundingBox<double> bb(
-							x * cellSize - 180.0 - ScaledDistanceDomain,
-							y * cellSize - 90.0 - ScaledDistanceDomain, cellSize + ScaledDistanceDomain * 2.0, cellSize + ScaledDistanceDomain * 2.0);
+						BoundingBox<double> bb( 
+							gmr.bbox.minX + x * cellSize - ScaledDistanceDomain,
+							gmr.bbox.minY + y * cellSize - ScaledDistanceDomain, 
+							cellSize + ScaledDistanceDomain * 2.0, 
+							cellSize + ScaledDistanceDomain * 2.0);
 						double minSqrDistance = numeric_limits<double>::max();
 
 						double px = bb.left + bb.width * 0.5;
 						double py = bb.top + bb.height * 0.5;
 
 						//omp_set_lock(&myLock);
-						LooseGeoQuadtree::Query query = qt.QueryIntersectsRegion(bb);
+						LooseGeoQuadtree::Query query = landPolyQuadtree.QueryIntersectsRegion(bb);
 						//omp_unset_lock(&myLock);
 
 						while (!query.EndOfQuery())
@@ -308,16 +314,16 @@ namespace dw
 
 						if (minSqrDistance == numeric_limits<double>::max())
 						{
-							(*world) = 255;
+							(*sdf) = 255;
 						}
 						else
 						{
 							double minDistance = Sign(minSqrDistance) * Sqrt(Abs(minSqrDistance));
-							u8 worldValue = (u8)Clamp(255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5), 0.0, 255.0);
-							(*world) = worldValue;
+							u8 sdfValue = (u8)Clamp(255.0 * (minDistance * 0.5 / ScaledDistanceDomain + 0.5), 0.0, 255.0);
+							(*sdf) = sdfValue;
 						}
 
-						world++;
+						sdf++;
 					}
 
 					yProgress++;
@@ -357,7 +363,7 @@ namespace dw
 
 					auto poly = new Polygon(feature);
 
-					qt.Insert(poly);
+					landPolyQuadtree.Insert(poly);
 					landPolygons[featureIndex] = poly;
 
 					OGRFeature::DestroyFeature(feature);
