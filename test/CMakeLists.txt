@@ -19,6 +19,10 @@ set(ADDITIONAL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/utils/ImageProcessor.cpp
 	${CMAKE_SOURCE_DIR}/src/utils/Elevation.cpp
 	${CMAKE_SOURCE_DIR}/src/utils/Polysplit.cpp
+	${CMAKE_SOURCE_DIR}/src/utils/Capabilities.cpp
+	${CMAKE_SOURCE_DIR}/src/layers/OSMSDF.cpp
+	${CMAKE_SOURCE_DIR}/src/WebMapService.cpp
+	${CMAKE_SOURCE_DIR}/src/dwcore.cpp
 )
 
 foreach(f ${ADDITIONAL_SOURCES})
