@@ -18,6 +18,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
  * Example Layer (showing how to implement the basics for your own layer)
  * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v4.1 (3 arc seconds))
+ * OpenStreetMap to Signed Distance Field Rasterization
 
 ---
 
@@ -39,6 +40,13 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
  * install package libgdal-dev
  * cmake -G "Unix Makefile"
  * make
+
+---
+
+## To-do: ##
+
+ * add configuration file system (e.g. libconfig) to support dynamic configurations
+ * replace POCO and libmicrohttpd library by cpprestsdk (https://github.com/Microsoft/cpprestsdk)
 
 ---
 
