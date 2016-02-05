@@ -31,7 +31,6 @@ using namespace dw;
 #define TestTag "TestSDFRasterizer - "
 
 //#pragma optimize( "", off )
-void SplitPolygons(const char* source_name, const char* dest_name);
 bool TestSDFRasterizer()
 {
 	GDALRegister_GTiff();

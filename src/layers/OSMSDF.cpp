@@ -77,6 +77,9 @@ public:
 			auto vertices = polygons[0].GetVertices();
 			ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 			polygons[0].CloseRing();
+
+			double area = polygons[0].ComputeArea();
+			assert(area >= 0.0);
 		}
 
 		// create inner holes
@@ -88,6 +91,9 @@ public:
 				auto vertices = polygons[p + 1].GetVertices();
 				ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 				polygons[p + 1].CloseRing();
+
+				double area = polygons[p + 1].ComputeArea();
+				assert(area <= 0.0);
 			}
 		}
 	}
