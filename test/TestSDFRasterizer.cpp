@@ -53,9 +53,9 @@ bool TestSDFRasterizer()
 		gmr.styles = "";
 		gmr.crs = "EPSG:4326";
 		gmr.bbox.minX = -180.0;
-		gmr.bbox.maxX = -180.0;
+		gmr.bbox.maxX =  180.0;
 		gmr.bbox.minY = -90.0;
-		gmr.bbox.maxY = -90.0;
+		gmr.bbox.maxY =  90.0;
 		gmr.width = Width;
 		gmr.height = Height;
 		gmr.dataType = DT_U8;

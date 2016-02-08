@@ -78,7 +78,7 @@ public:
 			ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 			polygons[0].CloseRing();
 
-			double area = polygons[0].ComputeArea();
+			double area = -polygons[0].ComputeArea(); // geo coordinate system has y-axis up, therefore winding is mirrored
 			assert(area >= 0.0);
 		}
 
@@ -92,7 +92,7 @@ public:
 				ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 				polygons[p + 1].CloseRing();
 
-				double area = polygons[p + 1].ComputeArea();
+				double area = -polygons[p + 1].ComputeArea(); // geo coordinate system has y-axis up, therefore winding is mirrored
 				assert(area <= 0.0);
 			}
 		}
