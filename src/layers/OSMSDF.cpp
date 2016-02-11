@@ -25,6 +25,7 @@
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
 #include "../utils/Filesystem.h"
+#include "../utils/VectorTiles/VectorTiles.h"
 
 #include <ogr_spatialref.h>
 #include <LooseQuadtree.h>
@@ -175,7 +176,13 @@ namespace dw
 
 
 				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
-
+				VectorTiles vt(worldVectorTiles);
+				if (vt.IsOk())
+				{
+					auto dataset = vt.Open(0, 0, 0);
+					// TOOD: read layers and their geometries
+					dataset->Release();
+				}
 
 				if (!exists(coastlineShapeFileDst))
 				{

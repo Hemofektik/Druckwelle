@@ -1,8 +1,6 @@
 #pragma once
 
-class OGRDataSource;
-
-
+class GDALDataset;
 
 class VectorTiles
 {
@@ -14,6 +12,6 @@ public:
 	VectorTiles(const char* path2mbtiles);
 	~VectorTiles();
 
-	GDALDataset* OpenVectorTile(int zoomLevel, int x, int y);
+	GDALDataset* Open(int zoomLevel, int x, int y);
 	bool IsOk() const;
 };
