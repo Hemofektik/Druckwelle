@@ -4,3 +4,6 @@
 [submodule "3rdparty/ZFXMath"]
 	path = 3rdparty/ZFXMath
 	url = https://github.com/Hemofektik/ZFXMath.git
+[submodule "3rdparty/protobuf"]
+	path = 3rdparty/protobuf
+	url = https://github.com/google/protobuf

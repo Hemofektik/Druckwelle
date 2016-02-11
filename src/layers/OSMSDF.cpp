@@ -171,6 +171,12 @@ namespace dw
 				const char* coastlineShapeFileSrc = "../../test/coastline/land_polygons.shp";
 				const char* coastlineShapeFileDst = "../../test/coastline/land_polygons_split.shp";
 
+				RegisterOGRShape();
+
+
+				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
+
+
 				if (!exists(coastlineShapeFileDst))
 				{
 					SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
@@ -341,7 +347,6 @@ namespace dw
 
 			bool LoadLandShapes(const char* landShapeFile)
 			{
-				RegisterOGRShape();
 				auto driver = OGRGetDriverByName("ESRI Shapefile");
 				OGRDataSource* source = (OGRDataSource*)OGROpen(landShapeFile, GA_ReadOnly, &driver);
 				if (!source)
@@ -351,6 +356,7 @@ namespace dw
 				}
 
 				OGRLayer* srcLayer = source->GetLayer(0);
+
 				GIntBig numFeatures = srcLayer->GetFeatureCount();
 				srcLayer->ResetReading();
 
