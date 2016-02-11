@@ -10,6 +10,8 @@
 #include <ogrsf_frmts.h>
 #pragma warning (pop)
 
+#include <zlib.h>
+
 #include <vector>
 #include <ZFXMath.h>
 
@@ -26,6 +28,48 @@ const int SEG_CLOSE = 7;
 int32_t ZigZagUint32ToInt32(uint32_t zigzag)
 {
 	return (int32_t)((zigzag & 1) ? -(int64_t)(zigzag >> 1) - 1 : (int64_t)(zigzag >> 1));
+}
+
+std::string decompress_gzip(const uint8_t* data, uint32_t dataSize)
+{
+	z_stream zs;                        // z_stream is zlib's control structure
+	memset(&zs, 0, sizeof(zs));
+
+	if (inflateInit2(&zs, MAX_WBITS + 16) != Z_OK)
+	{
+		return "";
+	}
+
+	zs.next_in = (Bytef*)data;
+	zs.avail_in = dataSize;
+
+	int ret;
+	char outbuffer[32768];
+	std::string outstring;
+
+	// get the decompressed bytes blockwise using repeated calls to inflate
+	do 
+	{
+		zs.next_out = reinterpret_cast<Bytef*>(outbuffer);
+		zs.avail_out = sizeof(outbuffer);
+
+		ret = inflate(&zs, 0);
+
+		if (outstring.size() < zs.total_out) 
+		{
+			outstring.append(outbuffer, zs.total_out - outstring.size());
+		}
+	} 
+	while (ret == Z_OK);
+
+	inflateEnd(&zs);
+
+	if (ret != Z_STREAM_END) 
+	{ 
+		return "";// an error occurred that was not EOF
+	}
+
+	return outstring;
 }
 
 bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
@@ -46,6 +90,7 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 		unsigned num_move_to = 0;
 		unsigned num_line_to = 0;
 		unsigned num_close = 0;
+		unsigned num_Points = 0;
 		unsigned num_empty = 0;
 		unsigned degenerate = 0;
 
@@ -154,6 +199,11 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 					lineStrings.push_back(move(p.Clone<double>(tileScale)));
 				}
 			}
+			else if (f.type() == vector_tile::Tile_GeomType_POINT)
+			{
+				num_Points += poly.GetNumVertices();
+				//polys.push_back(move(poly));
+			}
 		}
 		std::cout << "  geometry summary:\n";
 		std::cout << "    total: " << total_repeated << "\n";
@@ -164,6 +214,7 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 		std::cout << "    degenerate polygons: " << degenerate << "\n";
 		std::cout << "    empty geoms: " << num_empty << "\n";
 		std::cout << "    NUM LINE STRINGS: " << lineStrings.size() << "\n";
+		std::cout << "    NUM POINTS: " << num_Points << "\n";
 	}
 	return true;
 }
@@ -195,7 +246,7 @@ GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 {
 	if (!mbtiles) return NULL;
 
-	OGRLayer* layer = mbtiles->ExecuteSQL("SELECT tile_data FROM tiles WHERE zoom_level=0 AND tile_column=0 AND tile_row=0", NULL, "SQLITE");
+	OGRLayer* layer = mbtiles->ExecuteSQL("SELECT tile_data FROM tiles WHERE zoom_level=1 AND tile_column=1 AND tile_row=1", NULL, "SQLITE");
 
 	if (!layer || layer->GetFeatureCount() == 0)
 	{
@@ -204,25 +255,36 @@ GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 	}
 
 	const auto feature = layer->GetNextFeature();
-	int dataSize = 0;
-	GByte* data = feature->GetFieldAsBinary(0, &dataSize);
-	if (!data || !dataSize)
+	int zippedPBFSize = 0;
+	GByte* zippedPBF = feature->GetFieldAsBinary(0, &zippedPBFSize);
+	if (!zippedPBF || !zippedPBFSize)
 	{
+		OGRFeature::DestroyFeature(feature);
+		mbtiles->ReleaseResultSet(layer);
+		return NULL;
+	}
+
+	string pbf = decompress_gzip(zippedPBF, zippedPBFSize);
+	if (pbf.size() == 0)
+	{
+		OGRFeature::DestroyFeature(feature);
+		mbtiles->ReleaseResultSet(layer);
+		return NULL;
+	}
+
+	vector_tile::Tile tile;
+	if (!tile.ParseFromArray(pbf.data(), (int)pbf.size()))
+	{
+		OGRFeature::DestroyFeature(feature);
 		mbtiles->ReleaseResultSet(layer);
 		return NULL;
 	}
 
 	auto driver = (GDALDriver*)OGRGetDriverByName("ESRI Shapefile");
 	auto dataset = driver->Create("VectorTile", 0, 0, 0, GDT_Unknown, NULL);
-
-	vector_tile::Tile tile;
-	if (!tile.ParseFromArray(data, dataSize))
-	{
-		mbtiles->ReleaseResultSet(layer);
-		return NULL;
-	}
 	ParseTile(tile, dataset);
 
+	OGRFeature::DestroyFeature(feature);
 	mbtiles->ReleaseResultSet(layer);
 	return dataset;
 }
