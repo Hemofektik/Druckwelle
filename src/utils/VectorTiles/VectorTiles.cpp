@@ -72,63 +72,63 @@ std::string decompress_gzip(const uint8_t* data, uint32_t dataSize)
 	return outstring;
 }
 
-bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
+bool ConvertVectorTileToOGRDataset(
+	vector_tile::Tile& tile,
+	GDALDataset* dataset,
+	OGRSpatialReference* webmercator,
+	int zoomLevel, int x, int y)
 {
+	// transform integer vector tile coordinates into web mercator
+	int numTiles = 1 << zoomLevel;
+	double tileSize = 20037508.34 * 2.0 / (double)numTiles;
+	double left = -20037508.34 + x * tileSize;
+	double top = 20037508.34 - y * tileSize;
+
 	for (int l = 0; l < tile.layers_size(); l++)
 	{
-		vector_tile::Tile_Layer const& layer = tile.layers(l);
-		const double tileScale = 1.0 / layer.extent();
+		vector_tile::Tile_Layer const& srcLayer = tile.layers(l);
+		const double tileScale = tileSize / srcLayer.extent();
 
-		std::cout << layer.name() << ":\n";
-		std::cout << "  version: " << layer.version() << "\n";
-		std::cout << "  extent: " << layer.extent() << "\n";
-		std::cout << "  features: " << static_cast<std::size_t>(layer.features_size()) << "\n";
-		std::cout << "  keys: " << static_cast<std::size_t>(layer.keys_size()) << "\n";
-		std::cout << "  values: " << static_cast<std::size_t>(layer.values_size()) << "\n";
-		unsigned total_repeated = 0;
-		unsigned num_commands = 0;
-		unsigned num_move_to = 0;
-		unsigned num_line_to = 0;
-		unsigned num_close = 0;
-		unsigned num_Points = 0;
-		unsigned num_empty = 0;
-		unsigned degenerate = 0;
+		auto dstLayer = dataset->GetLayerByName(srcLayer.name().c_str());
+		if (!dstLayer)
+		{
+			dstLayer = dataset->CreateLayer(srcLayer.name().c_str(), webmercator);
+		}
+		//dstLayer->SetMetadataItem("version", to_string(srcLayer.version()).c_str());
 
 		vector<TPolygon2D<double>> lineStrings;
 		uint64_t lastFeatureId = 0;
-		for (int featureIndex = 0; featureIndex < layer.features_size(); featureIndex++)
+		for (int featureIndex = 0; featureIndex < srcLayer.features_size(); featureIndex++)
 		{
 			int32_t cursorX = 0;
 			int32_t cursorY = 0;
-			vector_tile::Tile_Feature const & f = layer.features(featureIndex);
-			total_repeated += f.geometry_size();
+			vector_tile::Tile_Feature const& srcFeature = srcLayer.features(featureIndex);
+
+			//auto dstFeature = new OGRFeature();
+
 			int cmd = -1;
 			const int cmd_bits = 3;
-			unsigned length = 0;
-			unsigned g_length = 0;
+			unsigned int length = 0;
 			vector<TPolygon2D<int32_t>> polys;
 			TPolygon2D<int32_t> poly;
-			for (int k = 0; k < f.geometry_size();)
+			for (int k = 0; k < srcFeature.geometry_size();)
 			{
 				if (!length) {
-					unsigned cmd_length = f.geometry(k++);
+					unsigned cmd_length = srcFeature.geometry(k++);
 					cmd = cmd_length & ((1 << cmd_bits) - 1);
 					length = cmd_length >> cmd_bits;
-					if (length <= 0) num_empty++;
-					num_commands++;
 				}
 				if (length > 0) {
 					length--;
 					if (cmd == SEG_MOVETO || cmd == SEG_LINETO)
 					{
-						uint32_t xZigZag = f.geometry(k++);
-						uint32_t yZigZag = f.geometry(k++);
+						uint32_t xZigZag = srcFeature.geometry(k++);
+						uint32_t yZigZag = srcFeature.geometry(k++);
 						int32_t xRel = ZigZagUint32ToInt32(xZigZag);
 						int32_t yRel = ZigZagUint32ToInt32(yZigZag);
 						cursorX += xRel;
 						cursorY += yRel;
 
-						g_length++;
 						if (cmd == SEG_MOVETO)
 						{
 							if (poly.GetNumVertices() > 0)
@@ -137,34 +137,27 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 								poly = TPolygon2D<int32_t>();
 								poly.ReserveNumVertices(10);
 							}
-
-							num_move_to++;
 						}
 						else if (cmd == SEG_LINETO)
 						{
-							num_line_to++;
 						}
 
 						poly.AddVertex(TVector2D<int32_t>(cursorX, cursorY));
 					}
 					else if (cmd == (SEG_CLOSE & ((1 << cmd_bits) - 1)))
-					{
-						if (g_length <= 2) degenerate++;
-						g_length = 0;
-						num_close++;
-
+					{					
 						polys.push_back(move(poly));
 						poly = TPolygon2D<int32_t>();
 						poly.ReserveNumVertices(10);
 					}
 					else
 					{
-						return false;
+						return false; // unknown command
 					}
 				}
 			}
 
-			if (f.type() == vector_tile::Tile_GeomType_POLYGON)
+			if (srcFeature.type() == vector_tile::Tile_GeomType_POLYGON)
 			{
 				size_t polyStartIndex = 0;
 				for (size_t p = 0; p < polys.size(); p++)
@@ -190,7 +183,7 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 					polygons.push_back(move(polygon));*/
 				}
 			}
-			else if (f.type() == vector_tile::Tile_GeomType_LINESTRING)
+			else if (srcFeature.type() == vector_tile::Tile_GeomType_LINESTRING)
 			{
 				polys.push_back(move(poly));
 
@@ -199,22 +192,11 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 					lineStrings.push_back(move(p.Clone<double>(tileScale)));
 				}
 			}
-			else if (f.type() == vector_tile::Tile_GeomType_POINT)
+			else if (srcFeature.type() == vector_tile::Tile_GeomType_POINT)
 			{
-				num_Points += poly.GetNumVertices();
 				//polys.push_back(move(poly));
 			}
 		}
-		std::cout << "  geometry summary:\n";
-		std::cout << "    total: " << total_repeated << "\n";
-		std::cout << "    commands: " << num_commands << "\n";
-		std::cout << "    move_to: " << num_move_to << "\n";
-		std::cout << "    line_to: " << num_line_to << "\n";
-		std::cout << "    close: " << num_close << "\n";
-		std::cout << "    degenerate polygons: " << degenerate << "\n";
-		std::cout << "    empty geoms: " << num_empty << "\n";
-		std::cout << "    NUM LINE STRINGS: " << lineStrings.size() << "\n";
-		std::cout << "    NUM POINTS: " << num_Points << "\n";
 	}
 	return true;
 }
@@ -222,6 +204,7 @@ bool ParseTile(vector_tile::Tile& tile, GDALDataset* dataset)
 
 VectorTiles::VectorTiles(const char* path2mbtiles)
 	: mbtiles(NULL)
+	, webMercator(new OGRSpatialReference("EPSG:3857"))
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -239,53 +222,80 @@ VectorTiles::~VectorTiles()
 		mbtiles->Release();
 	}
 
+	webMercator->Release();
+
 	//google::protobuf::ShutdownProtobufLibrary();
 }
 
+struct IntermediateQueryData
+{
+	GDALDataset* dataset;
+	OGRLayer* layer;
+	OGRFeature* feature;
+
+	IntermediateQueryData(GDALDataset* dataset)
+		: dataset(dataset)
+		, layer(NULL)
+		, feature(NULL)
+	{
+	}
+
+	~IntermediateQueryData()
+	{
+		if (feature) OGRFeature::DestroyFeature(feature);
+		if (layer) dataset->ReleaseResultSet(layer);
+	}
+};
+
+// Returns a dataset containing the requested vector tiles 
+// as ESRI Shape in Web Mercator Projection 3857.
+// Caller owns the dataset.
 GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 {
 	if (!mbtiles) return NULL;
 
-	OGRLayer* layer = mbtiles->ExecuteSQL("SELECT tile_data FROM tiles WHERE zoom_level=1 AND tile_column=1 AND tile_row=1", NULL, "SQLITE");
-
-	if (!layer || layer->GetFeatureCount() == 0)
+	string pbf;
 	{
-		mbtiles->ReleaseResultSet(layer);
-		return NULL;
-	}
+		IntermediateQueryData qd(mbtiles);
 
-	const auto feature = layer->GetNextFeature();
-	int zippedPBFSize = 0;
-	GByte* zippedPBF = feature->GetFieldAsBinary(0, &zippedPBFSize);
-	if (!zippedPBF || !zippedPBFSize)
-	{
-		OGRFeature::DestroyFeature(feature);
-		mbtiles->ReleaseResultSet(layer);
-		return NULL;
-	}
+		string query =	"SELECT tile_data FROM tiles WHERE zoom_level=" + to_string(zoomLevel) + 
+						" AND tile_column=" + to_string(x) + 
+						" AND tile_row=" + to_string(y);
+		qd.layer = mbtiles->ExecuteSQL(query.c_str(), NULL, "SQLITE");
 
-	string pbf = decompress_gzip(zippedPBF, zippedPBFSize);
-	if (pbf.size() == 0)
-	{
-		OGRFeature::DestroyFeature(feature);
-		mbtiles->ReleaseResultSet(layer);
-		return NULL;
+		if (!qd.layer || qd.layer->GetFeatureCount() == 0)
+		{
+			return NULL;
+		}
+
+		qd.feature = qd.layer->GetNextFeature();
+		int zippedPBFSize = 0;
+		GByte* zippedPBF = qd.feature->GetFieldAsBinary(0, &zippedPBFSize);
+		if (!zippedPBF || !zippedPBFSize)
+		{
+			return NULL;
+		}
+
+		pbf = decompress_gzip(zippedPBF, zippedPBFSize);
+		if (pbf.size() == 0)
+		{
+			return NULL;
+		}
 	}
 
 	vector_tile::Tile tile;
 	if (!tile.ParseFromArray(pbf.data(), (int)pbf.size()))
 	{
-		OGRFeature::DestroyFeature(feature);
-		mbtiles->ReleaseResultSet(layer);
 		return NULL;
 	}
 
 	auto driver = (GDALDriver*)OGRGetDriverByName("ESRI Shapefile");
 	auto dataset = driver->Create("VectorTile", 0, 0, 0, GDT_Unknown, NULL);
-	ParseTile(tile, dataset);
+	if (!ConvertVectorTileToOGRDataset(tile, dataset, webMercator, zoomLevel, x, y))
+	{
+		return NULL;
+	}
 
-	OGRFeature::DestroyFeature(feature);
-	mbtiles->ReleaseResultSet(layer);
 	return dataset;
 }
 

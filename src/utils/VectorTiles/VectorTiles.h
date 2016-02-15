@@ -1,11 +1,13 @@
 #pragma once
 
 class GDALDataset;
+class OGRSpatialReference;
 
 class VectorTiles
 {
 private:
 	GDALDataset* mbtiles;
+	OGRSpatialReference* webMercator;
 
 public:
 
