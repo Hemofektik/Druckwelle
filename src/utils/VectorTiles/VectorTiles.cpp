@@ -72,6 +72,49 @@ std::string decompress_gzip(const uint8_t* data, uint32_t dataSize)
 	return outstring;
 }
 
+void AddFielDefn(OGRFeatureDefn* featureDefn, const vector_tile::Tile_Layer& layer, uint32_t keyIndex, uint32_t valueIndex)
+{
+	const auto& key = layer.keys(keyIndex);
+	const auto& value = layer.values(valueIndex);
+
+	if (value.has_string_value())
+	{
+		featureDefn->AddFieldDefn(new OGRFieldDefn(key.c_str(), OFTString));
+	}
+	else if (value.has_float_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTReal);
+		field->SetSubType(OFSTFloat32);
+		featureDefn->AddFieldDefn(field);
+	}
+	else if (value.has_double_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTReal);
+		featureDefn->AddFieldDefn(field);
+	}
+	else if (value.has_int_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTInteger64);
+		featureDefn->AddFieldDefn(field);
+	}
+	else if (value.has_uint_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTInteger64);
+		featureDefn->AddFieldDefn(field);
+	}
+	else if (value.has_sint_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTInteger64);
+		featureDefn->AddFieldDefn(field);
+	}
+	else if (value.has_bool_value())
+	{
+		auto field = new OGRFieldDefn(key.c_str(), OFTInteger);
+		field->SetSubType(OFSTBoolean);
+		featureDefn->AddFieldDefn(field);
+	}
+}
+
 void SetFeatureField(OGRFeature* feature, const vector_tile::Tile_Layer& layer, uint32_t keyIndex, uint32_t valueIndex)
 {
 	const auto& key = layer.keys(keyIndex);
@@ -192,6 +235,14 @@ bool ConvertVectorTileToOGRDataset(
 			}
 
 			auto featureDefn = new OGRFeatureDefn();
+			for (int t = 0; t < srcFeature.tags_size(); t += 2)
+			{
+				uint32_t keyIndex = srcFeature.tags(t + 0);
+				uint32_t valueIndex = srcFeature.tags(t + 1);
+
+				AddFielDefn(featureDefn, srcLayer, keyIndex, valueIndex);
+			}
+
 			auto dstFeature = new OGRFeature(featureDefn);
 			dstFeature->SetFID(srcFeature.id());
 
