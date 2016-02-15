@@ -72,6 +72,41 @@ std::string decompress_gzip(const uint8_t* data, uint32_t dataSize)
 	return outstring;
 }
 
+void SetFeatureField(OGRFeature* feature, const vector_tile::Tile_Layer& layer, uint32_t keyIndex, uint32_t valueIndex)
+{
+	const auto& key = layer.keys(keyIndex);
+	const auto& value = layer.values(valueIndex);
+	
+	if (value.has_string_value())
+	{
+		feature->SetField(key.c_str(), value.string_value().c_str());
+	}
+	else if (value.has_float_value())
+	{
+		feature->SetField(key.c_str(), (double)value.float_value());
+	}
+	else if (value.has_double_value())
+	{
+		feature->SetField(key.c_str(), (double)value.double_value());
+	}
+	else if (value.has_int_value())
+	{
+		feature->SetField(key.c_str(), (GIntBig)value.int_value());
+	}
+	else if (value.has_uint_value())
+	{
+		feature->SetField(key.c_str(), (GIntBig)value.uint_value());
+	}
+	else if (value.has_sint_value())
+	{
+		feature->SetField(key.c_str(), (GIntBig)value.sint_value());
+	}
+	else if (value.has_bool_value())
+	{
+		feature->SetField(key.c_str(), (int)(value.bool_value() ? 1 : 0));
+	}
+}
+
 bool ConvertVectorTileToOGRDataset(
 	vector_tile::Tile& tile,
 	GDALDataset* dataset,
@@ -97,28 +132,27 @@ bool ConvertVectorTileToOGRDataset(
 		//dstLayer->SetMetadataItem("version", to_string(srcLayer.version()).c_str());
 
 		vector<TPolygon2D<double>> lineStrings;
-		uint64_t lastFeatureId = 0;
 		for (int featureIndex = 0; featureIndex < srcLayer.features_size(); featureIndex++)
 		{
 			int32_t cursorX = 0;
 			int32_t cursorY = 0;
-			vector_tile::Tile_Feature const& srcFeature = srcLayer.features(featureIndex);
-
-			//auto dstFeature = new OGRFeature();
+			const vector_tile::Tile_Feature& srcFeature = srcLayer.features(featureIndex);
 
 			int cmd = -1;
 			const int cmd_bits = 3;
 			unsigned int length = 0;
-			vector<TPolygon2D<int32_t>> polys;
-			TPolygon2D<int32_t> poly;
+			vector<TPolygon2D<int32_t>> vtPolys;
+			TPolygon2D<int32_t> vtPoly;
 			for (int k = 0; k < srcFeature.geometry_size();)
 			{
-				if (!length) {
+				if (!length) 
+				{
 					unsigned cmd_length = srcFeature.geometry(k++);
 					cmd = cmd_length & ((1 << cmd_bits) - 1);
 					length = cmd_length >> cmd_bits;
 				}
-				if (length > 0) {
+				if (length > 0) 
+				{
 					length--;
 					if (cmd == SEG_MOVETO || cmd == SEG_LINETO)
 					{
@@ -131,24 +165,24 @@ bool ConvertVectorTileToOGRDataset(
 
 						if (cmd == SEG_MOVETO)
 						{
-							if (poly.GetNumVertices() > 0)
+							if (vtPoly.GetNumVertices() > 0)
 							{
-								polys.push_back(move(poly));
-								poly = TPolygon2D<int32_t>();
-								poly.ReserveNumVertices(10);
+								vtPolys.push_back(move(vtPoly));
+								vtPoly = TPolygon2D<int32_t>();
+								vtPoly.ReserveNumVertices(10);
 							}
 						}
 						else if (cmd == SEG_LINETO)
 						{
 						}
 
-						poly.AddVertex(TVector2D<int32_t>(cursorX, cursorY));
+						vtPoly.AddVertex(TVector2D<int32_t>(cursorX, cursorY));
 					}
 					else if (cmd == (SEG_CLOSE & ((1 << cmd_bits) - 1)))
 					{					
-						polys.push_back(move(poly));
-						poly = TPolygon2D<int32_t>();
-						poly.ReserveNumVertices(10);
+						vtPolys.push_back(move(vtPoly));
+						vtPoly = TPolygon2D<int32_t>();
+						vtPoly.ReserveNumVertices(10);
 					}
 					else
 					{
@@ -157,16 +191,28 @@ bool ConvertVectorTileToOGRDataset(
 				}
 			}
 
+			auto featureDefn = new OGRFeatureDefn();
+			auto dstFeature = new OGRFeature(featureDefn);
+			dstFeature->SetFID(srcFeature.id());
+
+			for (int t = 0; t < srcFeature.tags_size(); t += 2)
+			{
+				uint32_t keyIndex = srcFeature.tags(t + 0);
+				uint32_t valueIndex = srcFeature.tags(t + 1);
+
+				SetFeatureField(dstFeature, srcLayer, keyIndex, valueIndex);
+			}
+
 			if (srcFeature.type() == vector_tile::Tile_GeomType_POLYGON)
 			{
 				size_t polyStartIndex = 0;
-				for (size_t p = 0; p < polys.size(); p++)
+				for (size_t p = 0; p < vtPolys.size(); p++)
 				{
-					int64_t polyArea = polys[p].ComputeArea<int64_t>();
+					int64_t polyArea = vtPolys[p].ComputeArea<int64_t>();
 					if (p > polyStartIndex && polyArea < 0) // test for multipolygons including interior polys
 					{
-						auto& poly = polys[polyStartIndex];
-						const auto* nextPoly = &polys[polyStartIndex + 1];
+						auto& poly = vtPolys[polyStartIndex];
+						const auto* nextPoly = &vtPolys[polyStartIndex + 1];
 						/*Polygon polygon(f.id(), tileScale, poly,
 							(polyStartIndex + 1 < polys.size()) ? nextPoly : NULL,
 							(uint32_t)(p - polyStartIndex - 1));
@@ -175,7 +221,7 @@ bool ConvertVectorTileToOGRDataset(
 						polyStartIndex = p;
 					}
 				}
-				if (polyStartIndex < polys.size())
+				if (polyStartIndex < vtPolys.size())
 				{
 					/*Polygon polygon(f.id(), tileScale, polys[polyStartIndex],
 						(polyStartIndex + 1 < polys.size()) ? &polys[polyStartIndex + 1] : NULL,
@@ -185,16 +231,23 @@ bool ConvertVectorTileToOGRDataset(
 			}
 			else if (srcFeature.type() == vector_tile::Tile_GeomType_LINESTRING)
 			{
-				polys.push_back(move(poly));
+				vtPolys.push_back(move(vtPoly));
 
-				for (const auto& p : polys)
+				for (const auto& vtp : vtPolys)
 				{
-					lineStrings.push_back(move(p.Clone<double>(tileScale)));
+					lineStrings.push_back(move(vtp.Clone<double>(tileScale)));
 				}
 			}
 			else if (srcFeature.type() == vector_tile::Tile_GeomType_POINT)
 			{
 				//polys.push_back(move(poly));
+			}
+
+			//dstFeature->SetGeometryDirectly(  )
+
+			if (dstLayer->CreateFeature(dstFeature))
+			{
+				return false;
 			}
 		}
 	}
@@ -247,9 +300,6 @@ struct IntermediateQueryData
 	}
 };
 
-// Returns a dataset containing the requested vector tiles 
-// as ESRI Shape in Web Mercator Projection 3857.
-// Caller owns the dataset.
 GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 {
 	if (!mbtiles) return NULL;
