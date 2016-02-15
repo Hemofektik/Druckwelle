@@ -180,7 +180,7 @@ namespace dw
 				if (vt.IsOk())
 				{
 					auto dataset = vt.Open(0, 0, 0);
-					// TOOD: read layers and their geometries
+					// TOOD: read layers and their geometries (use/adapt LoadLandShapes like below)
 					dataset->Release();
 				}
 
