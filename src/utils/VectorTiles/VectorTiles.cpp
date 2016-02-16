@@ -308,7 +308,8 @@ bool ConvertVectorTileToOGRDataset(
 				}
 
 				dstFeature = new OGRFeature(featureDefn);
-				dstFeature->SetFID(srcFeature.id());
+				GIntBig id = srcFeature.id();
+				dstFeature->SetFID(Abs(id));
 
 				for (int t = 0; t < srcFeature.tags_size(); t += 2)
 				{
