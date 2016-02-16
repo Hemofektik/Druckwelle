@@ -214,9 +214,9 @@ bool ConvertVectorTileToOGRDataset(
 {
 	// transform integer vector tile coordinates into web mercator
 	int numTiles = 1 << zoomLevel;
-	double tileSize = 20037508.34 * 2.0 / (double)numTiles;
-	double left = -20037508.34 + x * tileSize;
-	double top = 20037508.34 - (numTiles - y - 1) * tileSize;
+	double tileSize = VectorTiles::MapWidth / (double)numTiles;
+	double left = VectorTiles::MapLeft + x * tileSize;
+	double top = VectorTiles::MapTop - (numTiles - y - 1) * tileSize;
 
 	for (int l = 0; l < tile.layers_size(); l++)
 	{
@@ -442,6 +442,13 @@ bool ConvertVectorTileToOGRDataset(
 	return true;
 }
 
+const double VectorTiles::MapLeft = -20037508.34;
+const double VectorTiles::MapRight = 20037508.34;
+const double VectorTiles::MapTop = 20037508.34;
+const double VectorTiles::MapBottom = -20037508.34;
+
+const double VectorTiles::MapWidth = VectorTiles::MapRight - VectorTiles::MapLeft;
+const double VectorTiles::MapHeight = VectorTiles::MapTop - VectorTiles::MapBottom;
 
 VectorTiles::VectorTiles(const char* path2mbtiles)
 	: mbtiles(NULL)
@@ -511,7 +518,7 @@ GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 		GByte* zippedPBF = qd.feature->GetFieldAsBinary(0, &zippedPBFSize);
 		if (!zippedPBF || !zippedPBFSize)
 		{
-			return NULL;
+			return NULL; // TODO: empty tiles are totally fine, should return an empty static dataset instead?
 		}
 
 		pbf = decompress_gzip(zippedPBF, zippedPBFSize);

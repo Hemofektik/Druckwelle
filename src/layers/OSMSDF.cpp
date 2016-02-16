@@ -139,7 +139,6 @@ public:
 };
 
 typedef LooseQuadtree<double, Polygon, BoundingBoxExtractor> LooseGeoQuadtree;
-//void SplitPolygons(const char* source_name, const char* dest_name);
 
 namespace dw
 {
@@ -167,19 +166,6 @@ namespace dw
 					cout << "OSMSDF: " << "CRS support for EPSG:3857 is mandatory" << endl;
 					return false;
 				}
-
-				/*const char* coastlineShapeFileSrc = "../../test/coastline/land_polygons.shp";
-				const char* coastlineShapeFileDst = "../../test/coastline/land_polygons_split.shp";
-
-				RegisterOGRShape();
-
-				if (!exists(coastlineShapeFileDst))
-				{
-					SplitPolygons(coastlineShapeFileSrc, coastlineShapeFileDst);
-				}
-
-				if (!LoadLandShapes(coastlineShapeFileDst)) return false;
-				*/
 
 				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
 				vectorTiles = new VectorTiles(worldVectorTiles);
@@ -288,13 +274,33 @@ namespace dw
 
 			bool LoadDataSets(
 				const BBox& osmBBox,
+				const int width,
+				const int height,
 				QueryIntermediateData& qid)
 			{
-				// TODO: load all tiles which cover requested region in appropriate resolution
+				const double DesiredDataDensity = (256 / 1) / VectorTiles::MapWidth; // unit: (pixel / tile) / meter
+				const double densityX = width / (osmBBox.maxX - osmBBox.minX);
+				const double densityY = height / (osmBBox.maxY - osmBBox.minY);
+				const double maxDensity = Max(densityX, densityY);
 
-				if (!LoadDataSet(3, 4, 4, qid))
+				const double numTilesDesired = maxDensity / DesiredDataDensity;
+				const int zoomLevel = (int)ceil(log2(numTilesDesired));
+				const int numTiles = 1 << zoomLevel;
+
+				const int left = Max(0, (int)floor(numTiles * ((osmBBox.minX - VectorTiles::MapLeft) / VectorTiles::MapWidth)));
+				const int right = Min(numTiles, 1 + (int)ceil(numTiles * ((osmBBox.maxX - VectorTiles::MapLeft) / VectorTiles::MapWidth)));
+				const int bottom = Max(0, (int)floor(numTiles * ((osmBBox.minY - VectorTiles::MapBottom) / VectorTiles::MapHeight)));
+				const int top = Min(numTiles, 1 + (int)ceil(numTiles * ((osmBBox.maxY - VectorTiles::MapBottom) / VectorTiles::MapHeight)));
+
+				for (int y = bottom; y < top; y++)
 				{
-					return false;
+					for (int x = left; x < right; x++)
+					{
+						if (!LoadDataSet(zoomLevel, x, y, qid))
+						{
+							return false;
+						}
+					}
 				}
 
 				return true;
@@ -303,7 +309,7 @@ namespace dw
 			bool LoadDataSet(int zoomLevel, int x, int y, QueryIntermediateData& qid)
 			{
 				auto dataset = vectorTiles->Open(zoomLevel, x, y);
-				if (!dataset) return false;
+				if (!dataset) return true; // there may be missing tile datasets
 
 				bool success = LoadShapes(dataset, qid);
 				dataset->Release();
@@ -325,7 +331,7 @@ namespace dw
 				const double ScaledDistanceDomain = cellSize * DistanceDomain;
 
 				QueryIntermediateData qid(GetTransform(OSM_SpatRef, requestSRS));
-				if (!LoadDataSets(osmBBox, qid))
+				if (!LoadDataSets(osmBBox, Width, Height, qid))
 				{
 					return HGMRR_InternalError;
 				}
@@ -355,6 +361,10 @@ namespace dw
 						while (!query.EndOfQuery())
 						{
 							Polygon* poly = query.GetCurrent();
+
+							// TODO: support perfect precision mode:
+							// reproject polygon into azimuthal equidistant projection 
+							// around requested pixel location before computing the distance
 
 							const double aabbDistanceSqr = poly->ComputeSqrDistanceToBoundingBox(px, py);
 							if (aabbDistanceSqr < minSqrDistance) // test distance to AABB first before doing the expensive polygon distance test
@@ -398,15 +408,13 @@ namespace dw
 
 			bool LoadShapes(GDALDataset* dataset, QueryIntermediateData& qid)
 			{
-				OGRLayer* srcLayer = dataset->GetLayer(0);
+				OGRLayer* waterLayer = dataset->GetLayerByName("water");
+				if (!waterLayer) return true; // requested layer may not be present in requested dataset
 
-				cout << srcLayer->GetName() << endl;
-
-				GIntBig numFeatures = srcLayer->GetFeatureCount();
-				srcLayer->ResetReading();
+				waterLayer->ResetReading();
 
 				OGRFeature* feature;
-				while ((feature = srcLayer->GetNextFeature()) != NULL)
+				while ((feature = waterLayer->GetNextFeature()) != NULL)
 				{
 					auto geo = feature->GetGeometryRef();
 					auto featureId = feature->GetFID();

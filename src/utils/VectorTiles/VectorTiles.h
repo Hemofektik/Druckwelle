@@ -21,4 +21,11 @@ public:
 
 	// Indicates whether constructor did run through without any issues
 	bool IsOk() const;
+
+	static const double MapLeft;
+	static const double MapRight;
+	static const double MapTop;
+	static const double MapBottom;
+	static const double MapWidth;
+	static const double MapHeight;
 };
