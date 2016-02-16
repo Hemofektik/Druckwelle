@@ -150,6 +150,52 @@ void SetFeatureField(OGRFeature* feature, const vector_tile::Tile_Layer& layer, 
 	}
 }
 
+template<typename OGRGeometryType, bool CloseRing>
+OGRGeometryType* CreateOGRGeometry(
+	double tileScale, double left, double top,
+	const TPolygon2D<int32_t>& polygon)
+{
+	OGRGeometryType* geo = new OGRGeometryType();
+
+	const uint32_t numVertices = polygon.GetNumVertices();
+	geo->setNumPoints(numVertices);
+	for (uint32_t v = 0; v < numVertices; v++)
+	{
+		const auto& vertex = polygon.GetVertex(v);
+
+		double x = left + vertex.x * tileScale;
+		double y = top - vertex.y * tileScale;
+
+		geo->setPoint(v, x, y);
+	}
+
+	if (CloseRing)
+	{
+		geo->closeRings();
+	}
+
+	return geo;
+}
+
+OGRPolygon* CreateOGRPolygon(double tileScale, double left, double top,
+	const TPolygon2D<int32_t>& exterior,
+	const TPolygon2D<int32_t>* interior,
+	const uint32_t numInteriors)
+{
+	OGRPolygon* ogrPoly = new OGRPolygon();
+
+	ogrPoly->addRingDirectly(CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, exterior));
+
+	if (!interior || numInteriors <= 0) return ogrPoly;
+
+	for (uint32_t i = 0; i < numInteriors; i++)
+	{
+		ogrPoly->addRingDirectly(CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, interior[i]));
+	}
+
+	return ogrPoly;
+}
+
 bool ConvertVectorTileToOGRDataset(
 	vector_tile::Tile& tile,
 	GDALDataset* dataset,
@@ -280,20 +326,24 @@ bool ConvertVectorTileToOGRDataset(
 						{
 							auto& poly = vtPolys[polyStartIndex];
 							const auto* nextPoly = &vtPolys[polyStartIndex + 1];
-							/*Polygon polygon(f.id(), tileScale, poly,
-							(polyStartIndex + 1 < polys.size()) ? nextPoly : NULL,
-							(uint32_t)(p - polyStartIndex - 1));*/
-							//polygons.push_back(move(polygon));
 
+							auto ogrPolygon = CreateOGRPolygon(tileScale, left, top,
+								poly,
+								(polyStartIndex + 1 < vtPolys.size()) ? nextPoly : NULL,
+								(uint32_t)(p - polyStartIndex - 1));
+
+							polygons.push_back(ogrPolygon);
 							polyStartIndex = p;
 						}
 					}
 					if (polyStartIndex < vtPolys.size())
 					{
-						/*Polygon polygon(f.id(), tileScale, polys[polyStartIndex],
-						(polyStartIndex + 1 < polys.size()) ? &polys[polyStartIndex + 1] : NULL,
-						(uint32_t)(polys.size() - 1 - polyStartIndex));*/
-						//polygons.push_back(move(polygon));
+						auto ogrPolygon = CreateOGRPolygon(tileScale, left, top, 
+							vtPolys[polyStartIndex],
+							(polyStartIndex + 1 < vtPolys.size()) ? &vtPolys[polyStartIndex + 1] : NULL,
+							(uint32_t)(vtPolys.size() - 1 - polyStartIndex));
+
+						polygons.push_back(ogrPolygon);
 					}
 
 					if (polygons.size() > 1)
@@ -316,16 +366,49 @@ bool ConvertVectorTileToOGRDataset(
 				case vector_tile::Tile_GeomType_LINESTRING:
 				{
 					vtPolys.push_back(move(vtPoly));
-
 					for (const auto& vtp : vtPolys)
 					{
 						lineStrings.push_back(move(vtp.Clone<double>(tileScale)));
 					}
+
+					if (vtPolys.size() > 1)
+					{
+						auto multiLine = new OGRMultiLineString();
+						for (const auto& vtPoly : vtPolys)
+						{
+							multiLine->addGeometryDirectly(CreateOGRGeometry<OGRLineString, false>(tileScale, left, top, vtPoly));
+						}
+						geo = multiLine;
+					}
+					else if (vtPolys.size() == 1)
+					{
+						geo = CreateOGRGeometry<OGRLineString, false>(tileScale, left, top, vtPolys[0]);
+					}
+
 					break;
 				}
 				case vector_tile::Tile_GeomType_POINT:
 				{
-					//polys.push_back(move(poly));
+					if (vtPoly.GetNumVertices() > 1)
+					{
+						auto multiPoint = new OGRMultiPoint();
+						for (uint32_t v = 0; v < vtPoly.GetNumVertices(); v++)
+						{
+							const auto& vertex = vtPoly.GetVertex(v);
+							double x = left + vertex.x * tileScale;
+							double y = top - vertex.y * tileScale;
+							multiPoint->addGeometry(new OGRPoint(x, y));
+						}
+						geo = multiPoint;
+					}
+					else if (vtPoly.GetNumVertices() == 1)
+					{
+						const auto& vertex = vtPoly.GetVertex(0);
+						double x = left + vertex.x * tileScale;
+						double y = top - vertex.y * tileScale;
+						geo = new OGRPoint(x, y);
+					}
+
 					break;
 				}
 				default:
@@ -334,7 +417,7 @@ bool ConvertVectorTileToOGRDataset(
 
 			dstFeature->SetGeometryDirectly(geo);
 
-			if (dstLayer->CreateFeature(dstFeature))
+			if (dstLayer->CreateFeature(dstFeature) != OGRERR_NONE)
 			{
 				return false;
 			}
