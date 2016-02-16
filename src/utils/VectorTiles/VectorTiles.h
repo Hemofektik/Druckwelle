@@ -15,7 +15,7 @@ public:
 	~VectorTiles();
 
 	// Returns a dataset containing the requested vector tiles 
-	// as ESRI Shape in Web Mercator Projection 3857.
+	// as OGR Dataset in Web Mercator Projection 3857.
 	// Caller owns the dataset.
 	GDALDataset* Open(int zoomLevel, int x, int y);
 

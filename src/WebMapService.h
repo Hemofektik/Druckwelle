@@ -48,9 +48,9 @@ namespace dw
 				const BBox& srcBBox, BBox& dstBBox,
 				const OGRSpatialReference* srcSRS, const OGRSpatialReference* dstSRS) const;
 
+			OGRCoordinateTransformation* GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const;
 		private: 
 			void CreateTransform(OGRSpatialReference* src, OGRSpatialReference* dst);
-			OGRCoordinateTransformation* GetTransform(const OGRSpatialReference* src, const OGRSpatialReference* dst) const;
 
 		public:
 
@@ -128,6 +128,9 @@ namespace dw
 
 		std::map<string, Layer*> availableLayers;
 	};
+
+	#define DECLARE_WEBMAPSERVICE_LAYER(Class, Name, Title) \
+		friend static WebMapService::Layer* Construct##Name(); \
 
 	#define IMPLEMENT_WEBMAPSERVICE_LAYER(Class, Name, Title) \
 		static WebMapService::Layer* Construct##Name() { return new Class(); } \

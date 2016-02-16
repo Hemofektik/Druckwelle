@@ -224,7 +224,7 @@ namespace dw
 	{
 		supportedCRS =
 		{
-			//pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
+			pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
 			pair<string, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
 		};
 

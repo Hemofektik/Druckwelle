@@ -49,14 +49,12 @@ public:
 	int numPolygons;
 	BoundingBox<double> aabb;
 
-	Polygon(OGRFeature* src)
-		: id(src->GetFID())
+	Polygon(OGRPolygon* poly, GIntBig id)
+		: id(id)
 		, polygons(NULL)
 		, numPolygons(0)
 		, aabb(0, 0, 0, 0)
 	{
-		auto poly = (OGRPolygon*)src->GetGeometryRef();
-
 		// get AABB
 		{
 			OGREnvelope env;
@@ -79,7 +77,7 @@ public:
 			ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 			polygons[0].CloseRing();
 
-			double area = -polygons[0].ComputeArea(); // geo coordinate system has y-axis up, therefore winding is mirrored
+			double area = polygons[0].ComputeArea();
 			assert(area >= 0.0);
 		}
 
@@ -93,7 +91,7 @@ public:
 				ring->getPoints(&vertices[0].x, sizeof(TVector2D<double>), &vertices[0].y, sizeof(TVector2D<double>));
 				polygons[p + 1].CloseRing();
 
-				double area = -polygons[p + 1].ComputeArea(); // geo coordinate system has y-axis up, therefore winding is mirrored
+				double area = polygons[p + 1].ComputeArea();
 				assert(area <= 0.0);
 			}
 		}
@@ -127,7 +125,7 @@ public:
 			}
 		}
 
-		return pointIsRightOfEdge ? -sqrDistance : sqrDistance;
+		return pointIsRightOfEdge ? sqrDistance : -sqrDistance;
 	}
 };
 
@@ -141,7 +139,7 @@ public:
 };
 
 typedef LooseQuadtree<double, Polygon, BoundingBoxExtractor> LooseGeoQuadtree;
-void SplitPolygons(const char* source_name, const char* dest_name);
+//void SplitPolygons(const char* source_name, const char* dest_name);
 
 namespace dw
 {
@@ -153,36 +151,27 @@ namespace dw
 
 		class OSMSDF : public WebMapService::Layer
 		{
+			DECLARE_WEBMAPSERVICE_LAYER(OSMSDF, LayerName, LayerTitle);
+
 			OGRSpatialReference* OSM_SpatRef;
 
-			LooseGeoQuadtree landPolyQuadtree;
-			vector<Polygon*> landPolygons;
+			VectorTiles* vectorTiles;
 		public:
 
 			virtual bool Init(/* layerconfig */) override
 			{
-				OSM_SpatRef = supportedCRS["EPSG:4326"];
+				OSM_SpatRef = supportedCRS["EPSG:3857"];
 
 				if (!OSM_SpatRef)
 				{
-					cout << "OSMSDF: " << "CRS support for EPSG:4326 is mandatory" << endl;
+					cout << "OSMSDF: " << "CRS support for EPSG:3857 is mandatory" << endl;
 					return false;
 				}
 
-				const char* coastlineShapeFileSrc = "../../test/coastline/land_polygons.shp";
+				/*const char* coastlineShapeFileSrc = "../../test/coastline/land_polygons.shp";
 				const char* coastlineShapeFileDst = "../../test/coastline/land_polygons_split.shp";
 
 				RegisterOGRShape();
-
-
-				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
-				VectorTiles vt(worldVectorTiles);
-				if (vt.IsOk())
-				{
-					auto dataset = vt.Open(0, 0, 0);
-					// TOOD: read layers and their geometries (use/adapt LoadLandShapes like below)
-					dataset->Release();
-				}
 
 				if (!exists(coastlineShapeFileDst))
 				{
@@ -190,6 +179,11 @@ namespace dw
 				}
 
 				if (!LoadLandShapes(coastlineShapeFileDst)) return false;
+				*/
+
+				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
+				vectorTiles = new VectorTiles(worldVectorTiles);
+				if (!vectorTiles->IsOk()) return false;
 				
 				return true;
 			}
@@ -234,32 +228,34 @@ namespace dw
 				}
 			}
 
+		protected:
+
+			OSMSDF()
+				: OSM_SpatRef(NULL)
+				, vectorTiles(NULL)
+			{
+			}
+
 		private:
 
 			virtual ~OSMSDF() override
 			{
-				const size_t numShapes = landPolygons.size();
-				for (size_t n = 0; n < numShapes; n++)
-				{
-					delete landPolygons[n];
-				}
-				landPolygons.clear();
+				delete vectorTiles;
 			}
 
 			HandleGetMapRequestResult HandleGetMapRequest(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, Image& img)
 			{
 				assert(img.rawDataType == DT_U8);
 
-				BBox asterBBox;
-				if (!TransformBBox(gmr.bbox, asterBBox, requestSRS, OSM_SpatRef))
+				BBox osmBBox;
+				if (!TransformBBox(gmr.bbox, osmBBox, requestSRS, OSM_SpatRef))
 				{
 					return HGMRR_InvalidBBox; // TODO: according to WMS specs bbox may lay outside of valid areas (e.g. latitudes greater than 90 degrees in CRS:84)
 				}
 
 				high_resolution_clock::time_point t1 = high_resolution_clock::now();
 
-				memset(img.rawData, 0x7F, img.rawDataSize);
-				HandleGetMapRequestResult result = RasterImg(gmr, requestSRS, img);
+				HandleGetMapRequestResult result = RasterImg(gmr, osmBBox, requestSRS, img);
 
 				high_resolution_clock::time_point t2 = high_resolution_clock::now();
 				duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
@@ -268,7 +264,58 @@ namespace dw
 				return result;
 			}
 
-			HandleGetMapRequestResult RasterImg(const WebMapService::GetMapRequest& gmr, const OGRSpatialReference* requestSRS, Image& img)
+			struct QueryIntermediateData
+			{
+				LooseGeoQuadtree waterPolyQuadtree;
+				vector<Polygon*> waterPolygons;
+				OGRCoordinateTransformation* transform;
+
+				QueryIntermediateData(OGRCoordinateTransformation* transform)
+					: transform(transform)
+				{
+				}
+
+				~QueryIntermediateData()
+				{
+					const size_t numShapes = waterPolygons.size();
+					for (size_t n = 0; n < numShapes; n++)
+					{
+						delete waterPolygons[n];
+					}
+					waterPolygons.clear();
+				}
+			};
+
+			bool LoadDataSets(
+				const BBox& osmBBox,
+				QueryIntermediateData& qid)
+			{
+				// TODO: load all tiles which cover requested region in appropriate resolution
+
+				if (!LoadDataSet(3, 4, 4, qid))
+				{
+					return false;
+				}
+
+				return true;
+			}
+
+			bool LoadDataSet(int zoomLevel, int x, int y, QueryIntermediateData& qid)
+			{
+				auto dataset = vectorTiles->Open(zoomLevel, x, y);
+				if (!dataset) return false;
+
+				bool success = LoadShapes(dataset, qid);
+				dataset->Release();
+
+				return success;
+			}
+
+			HandleGetMapRequestResult RasterImg(
+				const WebMapService::GetMapRequest& gmr,
+				const BBox& osmBBox,
+				const OGRSpatialReference* requestSRS, 
+				Image& img)
 			{
 				const int Width = img.width;
 				const int Height = img.height;
@@ -277,15 +324,14 @@ namespace dw
 				const double cellSize = (gmr.bbox.maxX - gmr.bbox.minX) / Width;
 				const double ScaledDistanceDomain = cellSize * DistanceDomain;
 
-				// TODO: add locks for landPolyQuadtree.QueryIntersectsRegion(bb); to support concurrent GetMapRequests
+				QueryIntermediateData qid(GetTransform(OSM_SpatRef, requestSRS));
+				if (!LoadDataSets(osmBBox, qid))
+				{
+					return HGMRR_InternalError;
+				}
 
-				// OpenMP cannot be used here at the moment because this method could be called
-				// concurrently and omp_lock_t is only working on a single OMP Context
-				//omp_lock_t myLock;
-				//omp_init_lock(&myLock);
 				atomic_int yProgress = 0;
 
-				//#pragma omp parallel for
 				for (int y = 0; y < Height; y++)
 				{
 					u8* sdf = &img.rawData[(Height - y - 1) * Width];
@@ -304,10 +350,8 @@ namespace dw
 						double px = bb.left + bb.width * 0.5;
 						double py = bb.top + bb.height * 0.5;
 
-						//omp_set_lock(&myLock);
-						LooseGeoQuadtree::Query query = landPolyQuadtree.QueryIntersectsRegion(bb);
-						//omp_unset_lock(&myLock);
-
+						LooseGeoQuadtree::Query query = qid.waterPolyQuadtree.QueryIntersectsRegion(bb);
+						
 						while (!query.EndOfQuery())
 						{
 							Polygon* poly = query.GetCurrent();
@@ -316,7 +360,7 @@ namespace dw
 							if (aabbDistanceSqr < minSqrDistance) // test distance to AABB first before doing the expensive polygon distance test
 							{
 								double sqrDistance = poly->ComputeSignedSquareDistance(px, py);
-								minSqrDistance = min(minSqrDistance, sqrDistance);
+								minSqrDistance = Min(minSqrDistance, sqrDistance);
 							}
 
 							if (minSqrDistance < 0.0)
@@ -352,45 +396,51 @@ namespace dw
 				return HGMRR_OK;
 			}
 
-			bool LoadLandShapes(const char* landShapeFile)
+			bool LoadShapes(GDALDataset* dataset, QueryIntermediateData& qid)
 			{
-				auto driver = OGRGetDriverByName("ESRI Shapefile");
-				OGRDataSource* source = (OGRDataSource*)OGROpen(landShapeFile, GA_ReadOnly, &driver);
-				if (!source)
-				{
-					cout << "OSMSDF: " << "Unable to open shape file " << landShapeFile << endl;
-					return false;
-				}
+				OGRLayer* srcLayer = dataset->GetLayer(0);
 
-				OGRLayer* srcLayer = source->GetLayer(0);
+				cout << srcLayer->GetName() << endl;
 
 				GIntBig numFeatures = srcLayer->GetFeatureCount();
 				srcLayer->ResetReading();
 
-				landPolygons.resize(numFeatures);
-
-				GIntBig featureIndex = 0;
 				OGRFeature* feature;
 				while ((feature = srcLayer->GetNextFeature()) != NULL)
 				{
-					OGRGeometry* geometry = feature->GetGeometryRef();
+					auto geo = feature->GetGeometryRef();
+					auto featureId = feature->GetFID();
 
-					if (featureIndex % 10000 == 0)
+					if (qid.transform)
 					{
-						cout << "OSMSDF: " << "shapes loaded: " << featureIndex << " / " << numFeatures << "\r";
+						if (geo->transform(qid.transform) != OGRERR_NONE)
+						{
+							continue;
+						}
 					}
 
-					auto poly = new Polygon(feature);
+					if (geo->getGeometryType() == wkbMultiPolygon)
+					{
+						auto mp = (OGRMultiPolygon*)geo;
+						const int numPolys = mp->getNumGeometries();
+						for (int p = 0; p < numPolys; p++)
+						{
+							auto poly = new Polygon((OGRPolygon*)mp->getGeometryRef(p), featureId);
 
-					landPolyQuadtree.Insert(poly);
-					landPolygons[featureIndex] = poly;
+							qid.waterPolyQuadtree.Insert(poly);
+							qid.waterPolygons.push_back(poly);
+						}
+					}
+					else if (geo->getGeometryType() == wkbPolygon)
+					{
+						auto poly = new Polygon((OGRPolygon*)geo, featureId);
+
+						qid.waterPolyQuadtree.Insert(poly);
+						qid.waterPolygons.push_back(poly);
+					}
 
 					OGRFeature::DestroyFeature(feature);
-
-					featureIndex++;
 				}
-
-				OGRDataSource::DestroyDataSource(source);
 
 				return true;
 			}

@@ -36,7 +36,7 @@ bool TestSDFRasterizer()
 	GDALRegister_GTiff();
 
 	const int Width = 3600;
-	const int Height = 1800;
+	const int Height = 1600;
 	Image img(Width, Height, DT_U8);
 
 	map<std::string, WebMapService::Layer*> layers;
@@ -54,8 +54,8 @@ bool TestSDFRasterizer()
 		gmr.crs = "EPSG:4326";
 		gmr.bbox.minX = -180.0;
 		gmr.bbox.maxX =  180.0;
-		gmr.bbox.minY = -90.0;
-		gmr.bbox.maxY =  90.0;
+		gmr.bbox.minY = -80.0;
+		gmr.bbox.maxY =  80.0;
 		gmr.width = Width;
 		gmr.height = Height;
 		gmr.dataType = DT_U8;

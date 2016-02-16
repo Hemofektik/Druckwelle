@@ -45,6 +45,8 @@ namespace Layers
 
 	class QualityElevation : public WebMapService::Layer
 	{
+		DECLARE_WEBMAPSERVICE_LAYER(QualityElevation, LayerName, LayerTitle);
+
 		struct ASTERTile
 		{
 			int longitude;

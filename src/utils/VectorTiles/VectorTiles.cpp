@@ -158,6 +158,9 @@ OGRGeometryType* CreateOGRGeometry(
 	OGRGeometryType* geo = new OGRGeometryType();
 
 	const uint32_t numVertices = polygon.GetNumVertices();
+	if (CloseRing && numVertices < 3) return NULL;
+	if (!CloseRing && numVertices < 2) return NULL;
+
 	geo->setNumPoints(numVertices);
 	for (uint32_t v = 0; v < numVertices; v++)
 	{
@@ -184,13 +187,20 @@ OGRPolygon* CreateOGRPolygon(double tileScale, double left, double top,
 {
 	OGRPolygon* ogrPoly = new OGRPolygon();
 
-	ogrPoly->addRingDirectly(CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, exterior));
+	auto geo = CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, exterior);
+	if (!geo) return NULL;
+
+	ogrPoly->addRingDirectly(geo);
 
 	if (!interior || numInteriors <= 0) return ogrPoly;
 
 	for (uint32_t i = 0; i < numInteriors; i++)
 	{
-		ogrPoly->addRingDirectly(CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, interior[i]));
+		auto innerGeo = CreateOGRGeometry<OGRLinearRing, true>(tileScale, left, top, interior[i]);
+		if (innerGeo)
+		{
+			ogrPoly->addRingDirectly(innerGeo);
+		}
 	}
 
 	return ogrPoly;
@@ -206,7 +216,7 @@ bool ConvertVectorTileToOGRDataset(
 	int numTiles = 1 << zoomLevel;
 	double tileSize = 20037508.34 * 2.0 / (double)numTiles;
 	double left = -20037508.34 + x * tileSize;
-	double top = 20037508.34 - y * tileSize;
+	double top = 20037508.34 - (numTiles - y - 1) * tileSize;
 
 	for (int l = 0; l < tile.layers_size(); l++)
 	{
@@ -332,7 +342,10 @@ bool ConvertVectorTileToOGRDataset(
 								(polyStartIndex + 1 < vtPolys.size()) ? nextPoly : NULL,
 								(uint32_t)(p - polyStartIndex - 1));
 
-							polygons.push_back(ogrPolygon);
+							if (ogrPolygon)
+							{
+								polygons.push_back(ogrPolygon);
+							}
 							polyStartIndex = p;
 						}
 					}
@@ -343,7 +356,10 @@ bool ConvertVectorTileToOGRDataset(
 							(polyStartIndex + 1 < vtPolys.size()) ? &vtPolys[polyStartIndex + 1] : NULL,
 							(uint32_t)(vtPolys.size() - 1 - polyStartIndex));
 
-						polygons.push_back(ogrPolygon);
+						if (ogrPolygon)
+						{
+							polygons.push_back(ogrPolygon);
+						}
 					}
 
 					if (polygons.size() > 1)
@@ -433,7 +449,7 @@ VectorTiles::VectorTiles(const char* path2mbtiles)
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-	RegisterOGRShape();
+	RegisterOGRMEM();
 	RegisterOGRSQLite();
 
 	auto driver = OGRGetDriverByName("SQLite");
@@ -511,7 +527,7 @@ GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 		return NULL;
 	}
 
-	auto driver = (GDALDriver*)OGRGetDriverByName("ESRI Shapefile");
+	auto driver = (GDALDriver*)OGRGetDriverByName("Memory");
 	auto dataset = driver->Create("VectorTile", 0, 0, 0, GDT_Unknown, NULL);
 	if (!ConvertVectorTileToOGRDataset(tile, dataset, webMercator, zoomLevel, x, y))
 	{

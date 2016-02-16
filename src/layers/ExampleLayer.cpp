@@ -16,6 +16,9 @@ namespace Layers
 
 	class CircleTestLayer : public WebMapService::Layer
 	{
+		// allows you to declare a protected ctor
+		DECLARE_WEBMAPSERVICE_LAYER(CircleTestLayer, LayerName, LayerTitle);
+
 		virtual ~CircleTestLayer() override {};
 
 	public:
@@ -65,6 +68,7 @@ namespace Layers
 		}
 	};
 
+	// registers layer to be available to the web map service
 	IMPLEMENT_WEBMAPSERVICE_LAYER(CircleTestLayer, LayerName, LayerTitle);
 }
 }
