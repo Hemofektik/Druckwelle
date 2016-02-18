@@ -287,6 +287,8 @@ namespace dw
 				const int zoomLevel = (int)ceil(log2(numTilesDesired));
 				const int numTiles = 1 << zoomLevel;
 
+				// TODO: Take distance DistanceDomain into account ensure all geometries 
+				// outside of requested area but within DistanceDomain are loaded as well
 				const int left = Max(0, (int)floor(numTiles * ((osmBBox.minX - VectorTiles::MapLeft) / VectorTiles::MapWidth)));
 				const int right = Min(numTiles, 1 + (int)ceil(numTiles * ((osmBBox.maxX - VectorTiles::MapLeft) / VectorTiles::MapWidth)));
 				const int bottom = Max(0, (int)floor(numTiles * ((osmBBox.minY - VectorTiles::MapBottom) / VectorTiles::MapHeight)));
@@ -375,6 +377,9 @@ namespace dw
 
 							if (minSqrDistance < 0.0)
 							{
+								// TODO: merge polygon with surrounding polygons if their id matches
+								// do distance check again to get correct distance
+
 								break;
 							}
 
