@@ -3,10 +3,7 @@ cmake_minimum_required(VERSION 2.8)
 project (Druckwelle)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-	#set(CMAKE_BUILD_TYPE Debug)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
+
 
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 add_definitions( -DLITTLE_ENDIAN=1 )
@@ -24,6 +21,17 @@ if(MSVC)
 	add_definitions( -DALLOW_AMP=1 )
 	add_definitions( -DNOMINMAX )
 else()
+   
+    #set(CMAKE_BUILD_TYPE Debug)
+    
+    # Set C++11 feature set for both GCC and Clang 
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    
+    # Debug symbols for GCC
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+ 
+
+
 	add_definitions( -DALLOW_AMP=0 )
 
 	find_package(GDAL REQUIRED)
