@@ -27,6 +27,7 @@ using namespace ZFXMath;
 using namespace std;
 using namespace std::chrono;
 using namespace dw;
+using namespace libconfig;
 
 #define TestTag "TestSDFRasterizer - "
 
@@ -39,9 +40,11 @@ bool TestSDFRasterizer()
 	const int Height = 1600;
 	Image img(Width, Height, DT_U8);
 
+	Config cfg;
+	ChainedSetting config(cfg.getRoot());
 	map<std::string, WebMapService::Layer*> layers;
 	layers["OSM_SDF"] = NULL;
-	WebMapService::LayerFactory::CreateLayers(layers);
+	WebMapService::LayerFactory::CreateLayers(layers, config);
 
 	auto osmSDFLayer = layers["OSM_SDF"];
 
