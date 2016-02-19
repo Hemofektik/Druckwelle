@@ -338,7 +338,7 @@ namespace dw
 					return HGMRR_InternalError;
 				}
 
-				atomic_int yProgress = 0;
+				atomic_int yProgress(0);
 
 				for (int y = 0; y < Height; y++)
 				{

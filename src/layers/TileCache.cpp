@@ -222,14 +222,14 @@ namespace dw
 				memset(fileStatus.get(), FileStatus_Missing, numTilesX * numTilesY);
 				if (exists(levelPath))
 				{
-					for (directory_iterator di(levelPath); di != fsend(di); di++)
+					for (directory_iterator di(levelPath); di != end(di); di++)
 					{
 						const auto& entity = *di;
 						if (!is_directory(entity.status())) continue;
 
 						int y = atoi(entity.path().filename().generic_string().c_str());
 
-						for (directory_iterator fi(entity.path()); fi != fsend(fi); fi++)
+						for (directory_iterator fi(entity.path()); fi != end(fi); fi++)
 						{
 							const auto& fileEntity = *fi;
 							const auto extension = fileEntity.path().extension();

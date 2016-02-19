@@ -18,10 +18,10 @@
 #include <ogrsf_frmts.h>
 #pragma warning (pop)
 
-#include <../src/dwcore.h>
-#include <../src/WebMapService.h>
-#include <../src/utils/Filesystem.h>
-#include <../src/utils/ImageProcessor.h>
+#include "../src/dwcore.h"
+#include "../src/WebMapService.h"
+#include "../src/utils/Filesystem.h"
+#include "../src/utils/ImageProcessor.h"
 
 using namespace ZFXMath;
 using namespace std;

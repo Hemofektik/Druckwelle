@@ -137,7 +137,7 @@ namespace Layers
 			memset(fileExists.get(), 0, NumASTERTilesX * 180);
 			asterTileStartLatitude = 90;
 			asterTileEndLatitude = -90;
-			for (directory_iterator di(ASTERSourceDir); di != fsend(di); di++)
+			for (directory_iterator di(ASTERSourceDir); di != end(di); di++)
 			{
 				const auto& entity = *di;
 				const auto extension = entity.path().extension();
@@ -306,6 +306,8 @@ namespace Layers
 			GDALDataset* demDS = NULL;
 			//GDALDataset* numDS = NULL;
 			GDALRasterBand* demRasterBand = NULL;
+			int blockSizeX , blockSizeY;
+			int startY, endY;
 
 			demDS = (GDALDataset*)GDALOpen(tile->filename_dem.c_str(), GA_ReadOnly);
 			if (!demDS) goto err;
@@ -341,12 +343,12 @@ namespace Layers
 			}
 			//content.quality = new s16[content.width * content.height];
 
-			int blockSizeX, blockSizeY;
 			demRasterBand->GetBlockSize(&blockSizeX, &blockSizeY);
 			if (blockSizeX != content.width && blockSizeY != 1) goto err;
 
-			int startY = firstLineIncl ? *firstLineIncl : 0;
-			int endY = startY + (lastLineExcl ? *lastLineExcl : content.height);
+			
+			startY = firstLineIncl ? *firstLineIncl : 0;
+			endY = startY + (lastLineExcl ? *lastLineExcl : content.height);
 
 			for (int y = startY; y < endY; y++)
 			{

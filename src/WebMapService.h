@@ -3,6 +3,7 @@
 #include "dwcore.h"
 
 #include <string>
+#include <cstring>
 #include <vector>
 #include <map>
 
@@ -130,9 +131,9 @@ namespace dw
 	};
 
 	#define DECLARE_WEBMAPSERVICE_LAYER(Class, Name, Title) \
-		friend static WebMapService::Layer* Construct##Name(); \
+		friend WebMapService::Layer* Construct##Class();
 
 	#define IMPLEMENT_WEBMAPSERVICE_LAYER(Class, Name, Title) \
-		static WebMapService::Layer* Construct##Name() { return new Class(); } \
-		WebMapService::LayerFactory Class##Factory(Name, Title, Construct##LayerName);
+		WebMapService::Layer* Construct##Class() { return new Class(); } \
+		WebMapService::LayerFactory Class##Factory(Name, Title, Construct##Class);
 }

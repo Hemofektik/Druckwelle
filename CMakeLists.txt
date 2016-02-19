@@ -17,14 +17,12 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /openmp")
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /openmp")
 
-	add_definitions( -DHAS_FILE_SYSTEM=1 )
 	add_definitions( -DALLOW_AMP=1 )
 else()
-	add_definitions( -DHAS_FILE_SYSTEM=0 )
 	add_definitions( -DALLOW_AMP=0 )
 
 	find_package(GDAL)
-	find_package(Boost COMPONENTS system filesystem REQUIRED)
+	find_package(ZLIB)
 endif()
 
 
@@ -57,14 +55,16 @@ link_libraries (
 else()
 link_libraries (
 	${GDAL_LIBRARY}
-	${Boost_FILESYSTEM_LIBRARY}
-	${Boost_SYSTEM_LIBRARY}
+	${ZLIB_LIBRARIES}
 	microhttpd
 	PocoFoundation
 	PocoNet
 	PocoXML
+	stdc++fs
 )
 endif()
+
+message("zlib = ${ZLIB_LIBRARIES}")
 
 add_subdirectory(3rdparty/protobuf/cmake EXCLUDE_FROM_ALL)
 
