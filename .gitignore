@@ -7,3 +7,8 @@
 obj/
 x64/
 /sln
+/build
+GTAGS
+GPATH
+GRTAGS
+

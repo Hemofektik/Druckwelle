@@ -3,13 +3,11 @@ cmake_minimum_required(VERSION 2.8)
 project (Druckwelle)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin")
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-	#set(CMAKE_BUILD_TYPE Debug)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-endif()
+
 
 add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 add_definitions( -DLITTLE_ENDIAN=1 )
+
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -19,6 +17,17 @@ if(MSVC)
 
 	add_definitions( -DALLOW_AMP=1 )
 else()
+   
+    #set(CMAKE_BUILD_TYPE Debug)
+    
+    # Set C++11 feature set for both GCC and Clang 
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    
+    # Debug symbols for GCC
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+ 
+
+
 	add_definitions( -DALLOW_AMP=0 )
 
 	find_package(GDAL)
@@ -39,32 +48,31 @@ include_directories(
 )
 
 if(MSVC)
-link_libraries (
-	${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
-	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
-	${CMAKE_SOURCE_DIR}/lib/geos_c.lib
-	${CMAKE_SOURCE_DIR}/lib/gsl.lib
-	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
-)
+    link_libraries (
+        ${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
+        ${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
+        ${CMAKE_SOURCE_DIR}/lib/geos_c.lib
+        ${CMAKE_SOURCE_DIR}/lib/gsl.lib
+        ${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
+        optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
+        optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
+        optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
+        debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
+        debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
+        debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
+    )
 else()
-link_libraries (
-	${GDAL_LIBRARY}
-	${ZLIB_LIBRARIES}
-	microhttpd
-	PocoFoundation
-	PocoNet
-	PocoXML
-	stdc++fs
-)
+    link_libraries (
+        ${GDAL_LIBRARY}
+        ${ZLIB_LIBRARIES}
+        microhttpd
+        PocoFoundation
+        PocoNet
+        PocoXML
+        stdc++fs
+    )
 endif()
 
-message("zlib = ${ZLIB_LIBRARIES}")
 
 add_subdirectory(3rdparty/protobuf/cmake EXCLUDE_FROM_ALL)
 
