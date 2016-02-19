@@ -1,5 +1,4 @@
 
-#include <vector>
 #include <iostream>
 #include <iomanip>
 #include <chrono>
@@ -18,6 +17,7 @@
 
 using namespace std;
 using namespace std::chrono;
+using namespace libconfig;
 
 static const char* wmsCapabilites =
 #include "GetCapabilities.xml"
@@ -25,6 +25,27 @@ static const char* wmsCapabilites =
 
 namespace dw
 {
+	// Read the config file. If there is an error, report it and exit.
+	int ReadConfig(libconfig::Config& cfg, const char* filename)
+	{
+		try
+		{
+			cfg.readFile(filename);
+		}
+		catch (const libconfig::FileIOException&)
+		{
+			std::cerr << "I/O error while reading config file: " << filename << std::endl;
+			return (EXIT_FAILURE);
+		}
+		catch (const libconfig::ParseException& pex)
+		{
+			std::cerr	<< "Parse error at " << pex.getFile() << ":" << pex.getLine()
+						<< " - " << pex.getError() << std::endl;
+			return (EXIT_FAILURE);
+		}
+		return EXIT_SUCCESS;
+	}
+
 	WebMapService::WebMapService()
 	{
 	}
@@ -35,10 +56,23 @@ namespace dw
 
 		cout << "WebMapService: Reading Config" << endl;
 
+		libconfig::Config cfg;
+		/*int result = ReadConfig(cfg, "../example.cfg");
+		if (result != EXIT_SUCCESS)
+		{
+			return result;
+		}*/
+		
+		ChainedSetting config(cfg.getRoot());
+
 		// TODO: read config
+		/*string name = cs["name"].defaultValue("<name>").isMandatory();
+		string abstract = cs["abstract"].defaultValue("<unknown>");
+		double longitude = cs["longitude"].min(-180.0).max(180.0).isMandatory();
+		double latitude = cs["latitude"].min(-90.0).max(90.0).isMandatory();*/
 
 		cout << "WebMapService: Creating Layers" << endl;
-		LayerFactory::CreateLayers(availableLayers /*, config*/);
+		LayerFactory::CreateLayers(availableLayers, config);
 
 		if (availableLayers.size() == 0)
 		{
@@ -62,7 +96,7 @@ namespace dw
 	{
 	}
 
-	void WebMapService::LayerFactory::CreateLayers(std::map<string, Layer*>& layers /*, config*/)
+	void WebMapService::LayerFactory::CreateLayers(std::map<string, Layer*>& layers, ChainedSetting& config)
 	{
 		for (const auto& layerDesc : LayerFactory::GetStaticLayers())
 		{

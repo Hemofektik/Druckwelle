@@ -37,3 +37,5 @@ add_executable (
    ${SOURCES} 
    ${ADDITIONAL_SOURCES}  
 )
+
+add_dependencies(druckwelle_test libconfig++)

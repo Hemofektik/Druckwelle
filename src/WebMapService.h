@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 #include <map>
+#include <libconfig_chained.h>
 
 class OGRSpatialReference;
 class OGRCoordinateTransformation;
@@ -95,7 +96,7 @@ namespace dw
 				GetStaticLayers().push_back(lDesc);
 			}
 
-			static void CreateLayers(std::map<string, Layer*>& layers /*, config*/);
+			static void CreateLayers(std::map<string, Layer*>& layers, libconfig::ChainedSetting& config);
 
 		private:
 

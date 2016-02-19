@@ -23,3 +23,6 @@ add_executable (
    ${ADDITIONAL_SOURCES}  
    #${INCLUDES}
 )
+
+
+add_dependencies(druckwelle libconfig++)
