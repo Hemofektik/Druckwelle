@@ -7,3 +7,6 @@
 [submodule "3rdparty/protobuf"]
 	path = 3rdparty/protobuf
 	url = https://github.com/google/protobuf
+[submodule "3rdparty/libconfig"]
+	path = 3rdparty/libconfig
+	url = https://github.com/Hemofektik/libconfig.git
