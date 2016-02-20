@@ -120,7 +120,7 @@ namespace dw
 
 		WebMapService();
 
-		int Start();
+		int Start(libconfig::ChainedSetting& config);
 		void Stop();
 
 		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);

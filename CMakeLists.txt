@@ -60,7 +60,6 @@ include_directories(
 link_libraries (
 	${CMAKE_SOURCE_DIR}/lib/zlibwapi.lib
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
-	${CMAKE_SOURCE_DIR}/lib/geos_c.lib
 	${CMAKE_SOURCE_DIR}/lib/gsl.lib
 	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib

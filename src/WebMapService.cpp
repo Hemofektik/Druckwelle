@@ -25,45 +25,15 @@ static const char* wmsCapabilites =
 
 namespace dw
 {
-	// Read the config file. If there is an error, report it and exit.
-	int ReadConfig(libconfig::Config& cfg, const char* filename)
-	{
-		try
-		{
-			cfg.readFile(filename);
-		}
-		catch (const libconfig::FileIOException&)
-		{
-			std::cerr << "I/O error while reading config file: " << filename << std::endl;
-			return (EXIT_FAILURE);
-		}
-		catch (const libconfig::ParseException& pex)
-		{
-			std::cerr	<< "Parse error at " << pex.getFile() << ":" << pex.getLine()
-						<< " - " << pex.getError() << std::endl;
-			return (EXIT_FAILURE);
-		}
-		return EXIT_SUCCESS;
-	}
-
 	WebMapService::WebMapService()
 	{
 	}
 
-	int WebMapService::Start()
+	int WebMapService::Start(ChainedSetting& config)
 	{
 		// TODO: provide option to list all available layers and propose detailed config info for each layer (e.g. --help <layerName>)
 
 		cout << "WebMapService: Reading Config" << endl;
-
-		libconfig::Config cfg;
-		/*int result = ReadConfig(cfg, "../example.cfg");
-		if (result != EXIT_SUCCESS)
-		{
-			return result;
-		}*/
-		
-		ChainedSetting config(cfg.getRoot());
 
 		// TODO: read config
 		/*string name = cs["name"].defaultValue("<name>").isMandatory();

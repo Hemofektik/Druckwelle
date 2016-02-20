@@ -5,6 +5,7 @@
 #include <chrono>
 
 #include <microhttpd.h>
+#include <libconfig_chained.h>
 
 #include "WebServer.h"
 #include "WebMapService.h"
@@ -12,6 +13,7 @@
 
 using namespace std;
 using namespace std::chrono;
+using namespace libconfig;
 
 static int HandleRequestStatic(void *cls, struct MHD_Connection *connection,
 	const char *url, const char *method,
@@ -24,6 +26,26 @@ static int HandleRequestStatic(void *cls, struct MHD_Connection *connection,
 
 namespace dw
 {
+	// Read the config file. If there is an error, report it and exit.
+	int ReadConfig(libconfig::Config& cfg, const char* filename)
+	{
+		try
+		{
+			cfg.readFile(filename);
+		}
+		catch (const libconfig::FileIOException&)
+		{
+			std::cerr << "I/O error while reading config file: " << filename << std::endl;
+			return (EXIT_FAILURE);
+		}
+		catch (const libconfig::ParseException& pex)
+		{
+			std::cerr	<< "Parse error at " << pex.getFile() << ":" << pex.getLine()
+						<< " - " << pex.getError() << std::endl;
+			return (EXIT_FAILURE);
+		}
+		return EXIT_SUCCESS;
+	}
 
 	WebServer::WebServer()
 		: daemon(NULL)
@@ -32,15 +54,24 @@ namespace dw
 	{
 	}
 
-	static const int DefaultServerPort = 8282;
 	int WebServer::Start()
 	{
 		cout << "Reading Config" << endl;
 
-		// TODO: read config
+		libconfig::Config cfg;
+		int result = ReadConfig(cfg, "webserver.cfg");
+		if (result != EXIT_SUCCESS)
+		{
+			return result;
+		}
+
+		ChainedSetting config(cfg.getRoot());
+
+		// read config
+		int port = config["port"].min(0).max(65535).defaultValue(43113);
 
 		wms = new WebMapService();
-		const auto wmsStartResult = wms->Start();
+		const auto wmsStartResult = wms->Start(config);
 		if(wmsStartResult)
 		{
 			delete wms;
@@ -55,9 +86,9 @@ namespace dw
 			wmts = NULL;
 		}
 
-		cout << "Starting HTTP Server listening to port " << DefaultServerPort << endl;
+		cout << "Starting HTTP Server listening to port " << port << endl;
 
-		daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, DefaultServerPort, NULL, NULL, &HandleRequestStatic, this, MHD_OPTION_END);
+		daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, port, NULL, NULL, &HandleRequestStatic, this, MHD_OPTION_END);
 		if (!daemon) {
 			cout << "ERROR: unable to create HTTP server" << endl;
 			return -1;

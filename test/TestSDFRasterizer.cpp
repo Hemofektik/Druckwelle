@@ -78,5 +78,7 @@ bool TestSDFRasterizer()
 		GDALClose(dataSet);
 	}
 
+	delete osmSDFLayer;
+
 	return true;
 }
