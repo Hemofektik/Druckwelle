@@ -73,7 +73,7 @@ else()
 link_libraries (
 	${GDAL_LIBRARY}
 	${ZLIB_LIBRARIES}
-	${LIBCONFIG_LIBRARIES}
+	${LIBCONFIGPP_LIBRARIES}
 	microhttpd
 	PocoFoundation
 	PocoNet
