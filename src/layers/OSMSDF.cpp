@@ -157,7 +157,7 @@ namespace dw
 			VectorTiles* vectorTiles;
 		public:
 
-			virtual bool Init(/* layerconfig */) override
+			virtual bool Init(libconfig::ChainedSetting& config) override
 			{
 				OSM_SpatRef = supportedCRS["EPSG:3857"];
 
@@ -167,9 +167,15 @@ namespace dw
 					return false;
 				}
 
-				const char* worldVectorTiles = "../../test/world_z0-z5.mbtiles";
-				vectorTiles = new VectorTiles(worldVectorTiles);
-				if (!vectorTiles->IsOk()) return false;
+				string vectorTileFilePath = config["vectorTileFilePath"].isMandatory();
+				if (config.isAnyMandatorySettingMissing()) return false;
+
+				vectorTiles = new VectorTiles(vectorTileFilePath.c_str());
+				if (!vectorTiles->IsOk())
+				{
+					cout << "OSMSDF: " << "unable to open " << vectorTileFilePath << endl;
+					return false;
+				}
 				
 				return true;
 			}

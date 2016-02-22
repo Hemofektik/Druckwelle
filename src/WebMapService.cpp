@@ -42,7 +42,7 @@ namespace dw
 		double latitude = cs["latitude"].min(-90.0).max(90.0).isMandatory();*/
 
 		cout << "WebMapService: Creating Layers" << endl;
-		LayerFactory::CreateLayers(availableLayers, config);
+		LayerFactory::CreateLayers(availableLayers, config["layers"]);
 
 		if (availableLayers.size() == 0)
 		{
@@ -70,10 +70,13 @@ namespace dw
 	{
 		for (const auto& layerDesc : LayerFactory::GetStaticLayers())
 		{
+			auto layerConfig = config[layerDesc.name];
+			if (!layerConfig.exists()) continue;
+
 			Layer* newLayer = layerDesc.createLayer();
 
 			cout << "WebMapService: Loading layer: " << layerDesc.name << '\r';
-			if (newLayer->InitBase(/* layerconfig */) && newLayer->Init(/* layerconfig */))
+			if (newLayer->InitBase(layerConfig) && newLayer->Init(layerConfig))
 			{
 				layers[layerDesc.name] = newLayer;
 				wcout << "WebMapService: Activated layer: " << newLayer->GetTitle() << endl;
@@ -224,7 +227,7 @@ namespace dw
 		return HandleGetMapRequest(connection, layers, contentType, gmr);
 	}
 
-	bool WebMapService::Layer::InitBase(/* layerconfig */)
+	bool WebMapService::Layer::InitBase(libconfig::ChainedSetting& config)
 	{
 		supportedCRS =
 		{

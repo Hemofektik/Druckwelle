@@ -13,6 +13,7 @@ private:
 public:
 
 	VectorTiles(const char* path2mbtiles);
+	VectorTiles(const VectorTiles&) = delete;
 	~VectorTiles();
 
 	// Returns a dataset containing the requested vector tiles 

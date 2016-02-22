@@ -4,7 +4,6 @@ rmdir /S /Q inc
 
 mkdir lib
 mkdir inc
-mkdir bin
 
 :: POSIX
 xcopy /E /Y 3rdparty\POSIX\*.h inc

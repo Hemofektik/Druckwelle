@@ -68,8 +68,8 @@ namespace dw
 
 			virtual ~Layer() {};
 
-			virtual bool InitBase(/* layerconfig */);  // return true on successful init
-			virtual bool Init(/* layerconfig */) { return true; }  // return true on successful init
+			virtual bool InitBase(libconfig::ChainedSetting& config);  // return true on successful init
+			virtual bool Init(libconfig::ChainedSetting& config) { return true; }  // return true on successful init
  			virtual const char* GetName() const = 0;				// computer readable name (unique identification)
 			virtual const char_t* GetTitle() const = 0;				// human readable name
 			virtual const char_t* GetAbstract()  const { return NULL; };

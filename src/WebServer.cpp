@@ -70,12 +70,16 @@ namespace dw
 		// read config
 		int port = config["port"].min(0).max(65535).defaultValue(43113);
 
-		wms = new WebMapService();
-		const auto wmsStartResult = wms->Start(config);
-		if(wmsStartResult)
+		auto wmsConfig = config["wms"];
+		if (wmsConfig.exists())
 		{
-			delete wms;
-			wms = NULL;
+			wms = new WebMapService();
+			const auto wmsStartResult = wms->Start(wmsConfig);
+			if (wmsStartResult)
+			{
+				delete wms;
+				wms = NULL;
+			}
 		}
 
 		wmts = new WebMapTileService();

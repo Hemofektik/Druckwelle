@@ -41,9 +41,10 @@ bool TestSDFRasterizer()
 	Image img(Width, Height, DT_U8);
 
 	Config cfg;
+	cfg.readString("OSM_SDF = { vectorTileFilePath = \"../../test/world_z0-z5.mbtiles\"; };");
 	ChainedSetting config(cfg.getRoot());
+
 	map<std::string, WebMapService::Layer*> layers;
-	layers["OSM_SDF"] = NULL;
 	WebMapService::LayerFactory::CreateLayers(layers, config);
 
 	auto osmSDFLayer = layers["OSM_SDF"];

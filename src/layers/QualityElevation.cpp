@@ -82,7 +82,7 @@ namespace Layers
 
 	public:
 
-		virtual bool Init(/* layerconfig */) override
+		virtual bool Init(libconfig::ChainedSetting& config) override
 		{
 			GDALRegister_GTiff();
 
