@@ -36,7 +36,7 @@ else()
 
 	find_package(GDAL REQUIRED)
 	find_package(ZLIB REQUIRED)
-	find_package(LIBCONFIG REQUIRED)
+	find_package(LibConfig REQUIRED)
 endif()
 
 
@@ -73,7 +73,7 @@ else()
 link_libraries (
 	${GDAL_LIBRARY}
 	${ZLIB_LIBRARIES}
-	${LIBCONFIG_LIBRARIES}
+	${LIBCONFIGPP_LIBRARIES}
 	microhttpd
 	PocoFoundation
 	PocoNet
@@ -88,7 +88,10 @@ set  (THIRDPARTY
 	  libprotobuf-lite)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set_property(TARGET ${THIRDPARTY} libconfig++ PROPERTY FOLDER "3rdparty")
+
+if(MSVC)
+	set_property(TARGET ${THIRDPARTY} libconfig++ PROPERTY FOLDER "3rdparty")
+endif()
 
 link_libraries (
 	${THIRDPARTY}
