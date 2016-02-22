@@ -454,14 +454,19 @@ const double VectorTiles::MapHeight = VectorTiles::MapTop - VectorTiles::MapBott
 VectorTiles::VectorTiles(const char* path2mbtiles)
 	: mbtiles(NULL)
 	, webMercator(new OGRSpatialReference("EPSG:3857"))
+	, emptyTile(NULL)
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
 	RegisterOGRMEM();
 	RegisterOGRSQLite();
 
-	auto driver = OGRGetDriverByName("SQLite");
-	mbtiles = (GDALDataset*)OGROpen(path2mbtiles, GA_ReadOnly, &driver);
+	auto sqliteDriver = OGRGetDriverByName("SQLite");
+	mbtiles = (GDALDataset*)OGROpen(path2mbtiles, GA_ReadOnly, &sqliteDriver);
+
+	auto memDriver = (GDALDriver*)OGRGetDriverByName("Memory");
+	emptyTile = memDriver->Create("VectorTile", 0, 0, 0, GDT_Unknown, NULL);
+	emptyTile->MarkAsShared();
 }
 
 VectorTiles::~VectorTiles()
@@ -471,6 +476,7 @@ VectorTiles::~VectorTiles()
 		mbtiles->Release();
 	}
 
+	emptyTile->Release();
 	webMercator->Release();
 
 	//google::protobuf::ShutdownProtobufLibrary();
@@ -519,7 +525,8 @@ GDALDataset* VectorTiles::Open(int zoomLevel, int x, int y)
 		GByte* zippedPBF = qd.feature->GetFieldAsBinary(0, &zippedPBFSize);
 		if (!zippedPBF || !zippedPBFSize)
 		{
-			return NULL; // TODO: empty tiles are totally fine, should return an empty static dataset instead?
+			emptyTile->Reference();
+			return emptyTile;
 		}
 
 		pbf = decompress_gzip(zippedPBF, zippedPBFSize);

@@ -8,6 +8,7 @@ class VectorTiles
 private:
 	GDALDataset* mbtiles;
 	OGRSpatialReference* webMercator;
+	GDALDataset* emptyTile;
 
 public:
 

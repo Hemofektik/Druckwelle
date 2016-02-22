@@ -311,7 +311,7 @@ namespace dw
 			bool LoadDataSet(int zoomLevel, int x, int y, QueryIntermediateData& qid)
 			{
 				auto dataset = vectorTiles->Open(zoomLevel, x, y);
-				if (!dataset) return true; // there may be missing tile datasets
+				if (!dataset) return false;
 
 				bool success = LoadShapes(dataset, qid);
 				dataset->Release();
