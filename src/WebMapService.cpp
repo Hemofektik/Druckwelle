@@ -42,7 +42,9 @@ namespace dw
 		double latitude = cs["latitude"].min(-90.0).max(90.0).isMandatory();*/
 
 		cout << "WebMapService: Creating Layers" << endl;
-		LayerFactory::CreateLayers(availableLayers, config["layers"]);
+
+		auto layersConfig = config["layers"];
+		LayerFactory::CreateLayers(availableLayers, layersConfig);
 
 		if (availableLayers.size() == 0)
 		{
@@ -229,19 +231,33 @@ namespace dw
 
 	bool WebMapService::Layer::InitBase(libconfig::ChainedSetting& config)
 	{
-		supportedCRS =
+		auto crs = config["CRS"];
+		const int numCRS = crs.getLength();
+		if (numCRS > 0)
 		{
-			pair<string, OGRSpatialReference*>("EPSG:3857", (OGRSpatialReference*)OSRNewSpatialReference(NULL)),
-			pair<string, OGRSpatialReference*>("EPSG:4326",  (OGRSpatialReference*)OSRNewSpatialReference(NULL))
-		};
+			for (int c = 0; c < numCRS; c++)
+			{
+				supportedCRS[crs[c]] = (OGRSpatialReference*)OSRNewSpatialReference(NULL);
+			}
+		}
+		else
+		{
+			cout << "WebMapService::Layer: " << "At least one CRS must be defined" << endl;
+			return false;
+		}
 
 		for (auto it = supportedCRS.begin(); it != supportedCRS.end(); it++)
 		{
-			int epsgCode = atoi(it->first.c_str() + 5);
-			OGRErr err = it->second->importFromEPSG(epsgCode);
+			OGRErr err = OGRERR_UNSUPPORTED_SRS;
+			string crsString = it->first;
+			if (crsString.length() > 5)
+			{
+				int epsgCode = atoi(crsString.c_str() + 5); // TODO: support non-EPSG codes
+				err = it->second->importFromEPSG(epsgCode);
+			}
 			if (err == OGRERR_UNSUPPORTED_SRS)
 			{
-				cout << "WebMapService::Layer: " << "requested EPSG Code is unsupported:" << epsgCode << endl;
+				cout << "WebMapService::Layer: " << "requested CRS is unsupported:" << crsString << endl;
 				return false;
 			}
 		}

@@ -226,7 +226,7 @@ bool ConvertVectorTileToOGRDataset(
 		auto dstLayer = dataset->GetLayerByName(srcLayer.name().c_str());
 		if (!dstLayer)
 		{
-			dstLayer = dataset->CreateLayer(srcLayer.name().c_str(), webmercator);
+			dstLayer = dataset->CreateLayer(srcLayer.name().c_str(), webmercator->Clone());
 		}
 		//dstLayer->SetMetadataItem("version", to_string(srcLayer.version()).c_str());
 
@@ -453,7 +453,7 @@ const double VectorTiles::MapHeight = VectorTiles::MapTop - VectorTiles::MapBott
 
 VectorTiles::VectorTiles(const char* path2mbtiles)
 	: mbtiles(NULL)
-	, webMercator(new OGRSpatialReference("EPSG:3857"))
+	, webMercator((OGRSpatialReference*)OSRNewSpatialReference(NULL))
 	, emptyTile(NULL)
 {
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -467,6 +467,8 @@ VectorTiles::VectorTiles(const char* path2mbtiles)
 	auto memDriver = (GDALDriver*)OGRGetDriverByName("Memory");
 	emptyTile = memDriver->Create("VectorTile", 0, 0, 0, GDT_Unknown, NULL);
 	emptyTile->MarkAsShared();
+
+	webMercator->importFromEPSG(3857);
 }
 
 VectorTiles::~VectorTiles()
@@ -477,7 +479,7 @@ VectorTiles::~VectorTiles()
 	}
 
 	emptyTile->Release();
-	webMercator->Release();
+	OGRSpatialReference::DestroySpatialReference(webMercator);
 
 	//google::protobuf::ShutdownProtobufLibrary();
 }

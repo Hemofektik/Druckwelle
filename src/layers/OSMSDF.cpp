@@ -167,7 +167,7 @@ namespace dw
 					return false;
 				}
 
-				string vectorTileFilePath = config["vectorTileFilePath"].isMandatory();
+				string vectorTileFilePath = config["VectorTileFilePath"].isMandatory();
 				if (config.isAnyMandatorySettingMissing()) return false;
 
 				vectorTiles = new VectorTiles(vectorTileFilePath.c_str());
