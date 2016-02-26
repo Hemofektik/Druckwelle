@@ -10,3 +10,6 @@
 [submodule "3rdparty/libconfig"]
 	path = 3rdparty/libconfig
 	url = https://github.com/Hemofektik/libconfig.git
+[submodule "3rdparty/cpplinq"]
+	path = 3rdparty/cpplinq
+	url = https://github.com/mrange/cpplinq.git

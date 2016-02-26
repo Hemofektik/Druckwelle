@@ -45,7 +45,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
 ## To-do: ##
 
- * add configuration file system (e.g. libconfig) to support dynamic configurations
+ * replace all 3rdparty lib copies by submodules
  * replace POCO and libmicrohttpd library by cpprestsdk (https://github.com/Microsoft/cpprestsdk)
 
 ---
