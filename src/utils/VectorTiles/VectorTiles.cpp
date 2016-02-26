@@ -332,8 +332,8 @@ bool ConvertVectorTileToOGRDataset(
 					size_t polyStartIndex = 0;
 					for (size_t p = 0; p < vtPolys.size(); p++)
 					{
-						int64_t polyArea = vtPolys[p].ComputeArea<int64_t>();
-						if (p > polyStartIndex && polyArea < 0) // test for multipolygons including interior polys
+						double polyArea = vtPolys[p].ComputeArea<double>();
+						if (p > polyStartIndex && polyArea < 0.0) // test for multipolygons including interior polys
 						{
 							auto& poly = vtPolys[polyStartIndex];
 							const auto* nextPoly = &vtPolys[polyStartIndex + 1];
