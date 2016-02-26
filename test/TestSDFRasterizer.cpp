@@ -71,7 +71,8 @@ bool TestSDFRasterizer()
 		int bX, bY;
 		band->GetBlockSize(&bX, &bY);
 
-		for (int y = 0; y < Height / bY; y++)
+		int numBlocks = (int)ceil(Height / (double)bY);
+		for (int y = 0; y < numBlocks; y++)
 		{
 			band->WriteBlock(0, y, world);
 			world += Width * bY;

@@ -110,22 +110,25 @@ public:
 
 	double ComputeSignedSquareDistance(double x, double y) const
 	{
-		bool pointIsRightOfEdge = false;
+		bool isInside = false;
 		TVector2D<double> point(x, y);
-		double sqrDistance = polygons[0].ComputeSqrDistance(point, pointIsRightOfEdge);
+		double sqrDistance = polygons[0].ComputeSqrDistance(point, isInside);
 
-		for (int p = 1; p < numPolygons; p++)
+		if (isInside)
 		{
-			bool pointIsRightOfInnerEdge = false;
-			double innerSqrDistance = polygons[p].ComputeSqrDistance(point, pointIsRightOfInnerEdge);
-			if (innerSqrDistance < sqrDistance)
+			for (int p = 1; p < numPolygons; p++)
 			{
-				sqrDistance = innerSqrDistance;
-				pointIsRightOfEdge = pointIsRightOfInnerEdge;
+				bool pointIsInsideofInnerPolygon = false;
+				double innerSqrDistance = polygons[p].ComputeSqrDistance(point, pointIsInsideofInnerPolygon);
+				if (innerSqrDistance < sqrDistance)
+				{
+					sqrDistance = innerSqrDistance;
+					isInside = !pointIsInsideofInnerPolygon;
+				}
 			}
 		}
 
-		return pointIsRightOfEdge ? sqrDistance : -sqrDistance;
+		return isInside ? -sqrDistance : sqrDistance;
 	}
 };
 
@@ -348,7 +351,8 @@ namespace dw
 
 				for (int y = 0; y < Height; y++)
 				{
-					u8* sdf = &img.rawData[(Height - y - 1) * Width];
+					int invertedY = (Height - y - 1);
+					u8* sdf = &img.rawData[invertedY * Width];
 
 					for (int x = 0; x < Width; x++)
 					{
