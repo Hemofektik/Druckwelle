@@ -13,3 +13,6 @@
 [submodule "3rdparty/cpplinq"]
 	path = 3rdparty/cpplinq
 	url = https://github.com/mrange/cpplinq.git
+[submodule "3rdparty/stb"]
+	path = 3rdparty/stb
+	url = https://github.com/nothings/stb.git
