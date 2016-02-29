@@ -15,6 +15,7 @@ if(MSVC)
 	set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /openmp")
 
 	INCLUDE_EXTERNAL_MSPROJECT(libconfig++ "${CMAKE_SOURCE_DIR}/3rdparty/libconfig/lib/libconfig++.vcxproj")
+	INCLUDE_EXTERNAL_MSPROJECT(cpprestsdk140 "${CMAKE_SOURCE_DIR}/3rdparty/cpprestsdk/Release/src/build/vs14/casablanca140.vcxproj")
 
 	add_definitions( -DALLOW_AMP=1 )
 	add_definitions( -DNOMINMAX )
@@ -32,6 +33,8 @@ else()
 
 	find_package(GDAL REQUIRED)
 	find_package(LibConfig REQUIRED)
+
+	add_subdirectory(3rdparty/cpprestsdk/Release EXCLUDE_FROM_ALL)
 endif()
 
 
@@ -56,7 +59,7 @@ set  (THIRDPARTY
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(MSVC)
-	set_property(TARGET ${THIRDPARTY} libconfig++ PROPERTY FOLDER "3rdparty")
+	set_property(TARGET ${THIRDPARTY} libconfig++ cpprestsdk140 PROPERTY FOLDER "3rdparty")
 endif()
 
 link_libraries (
@@ -90,6 +93,7 @@ link_libraries (
 	PocoNet
 	PocoXML
 	stdc++fs
+	cpprestsdk140
 )
 endif()
 

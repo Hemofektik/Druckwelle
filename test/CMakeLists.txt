@@ -38,4 +38,4 @@ add_executable (
    ${ADDITIONAL_SOURCES}  
 )
 
-add_dependencies(druckwelle_test libconfig++)
+add_dependencies(druckwelle_test libconfig++ cpprestsdk140)

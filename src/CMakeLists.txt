@@ -25,4 +25,4 @@ add_executable (
 )
 
 
-add_dependencies(druckwelle libconfig++)
+add_dependencies(druckwelle libconfig++ cpprestsdk140)

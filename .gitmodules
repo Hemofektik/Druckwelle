@@ -19,3 +19,6 @@
 [submodule "3rdparty/zlib"]
 	path = 3rdparty/zlib
 	url = https://github.com/madler/zlib.git
+[submodule "3rdparty/cpprestsdk"]
+	path = 3rdparty/cpprestsdk
+	url = https://github.com/Microsoft/cpprestsdk.git
