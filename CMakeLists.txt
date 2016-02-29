@@ -45,6 +45,7 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/loose_quadtree/src/include
 	${CMAKE_SOURCE_DIR}/3rdparty/protobuf/src
 	${CMAKE_SOURCE_DIR}/3rdparty/libconfig/contrib/chained
+	${CMAKE_SOURCE_DIR}/3rdparty/cpprestsdk/Release/include
 	${GDAL_INCLUDE_DIR}
 )
 
@@ -72,11 +73,9 @@ include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/libconfig/lib
 	${CMAKE_SOURCE_DIR}/3rdparty/poco/include
 	${CMAKE_SOURCE_DIR}/3rdparty/GDAL/include
-	${CMAKE_SOURCE_DIR}/3rdparty/libmicrohttpd/include
 )
 link_libraries (
 	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
-	${CMAKE_SOURCE_DIR}/lib/libmicrohttpd-dll.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
 	optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
@@ -88,7 +87,6 @@ else()
 link_libraries (
 	${GDAL_LIBRARY}
 	${LIBCONFIGPP_LIBRARIES}
-	microhttpd
 	PocoFoundation
 	PocoNet
 	PocoXML

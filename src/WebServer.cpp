@@ -4,7 +4,11 @@
 #include <iomanip>
 #include <chrono>
 
-#include <microhttpd.h>
+#include <cpprest/json.h>
+#include <cpprest/http_listener.h>
+#include <cpprest/uri.h>
+#include <cpprest/asyncrt_utils.h>
+
 #include <libconfig_chained.h>
 
 #include "WebServer.h"
@@ -15,17 +19,37 @@ using namespace std;
 using namespace std::chrono;
 using namespace libconfig;
 
-static int HandleRequestStatic(void *cls, struct MHD_Connection *connection,
-	const char *url, const char *method,
-	const char *version, const char *upload_data,
-	size_t *upload_data_size, void **con_cls)
-{
-	auto ws = static_cast<dw::WebServer*>(cls);
-	return ws->HandleRequest(connection, url, method);
-}
+using namespace web;
+using namespace http;
+using namespace utility;
+using namespace http::experimental::listener;
 
 namespace dw
 {
+	class WebServer : public IWebServer
+	{
+	public:
+		WebServer();
+		WebServer(WebServer& other) = delete;
+
+		virtual int Start() override;
+		virtual void Stop() override;
+
+		virtual ~WebServer() override;
+
+	private:
+		void HandleGetRequest(http_request message);
+
+		class http_listener* listener;
+		class WebMapService* wms;
+		class WebMapTileService* wmts;
+	};
+
+	IWebServer* IWebServer::Create()
+	{
+		return new WebServer();
+	}
+
 	// Read the config file. If there is an error, report it and exit.
 	int ReadConfig(libconfig::Config& cfg, const char* filename)
 	{
@@ -48,7 +72,7 @@ namespace dw
 	}
 
 	WebServer::WebServer()
-		: daemon(NULL)
+		: listener(NULL)
 		, wms(NULL)
 		, wmts(NULL)
 	{
@@ -92,38 +116,62 @@ namespace dw
 
 		cout << "Starting HTTP Server listening to port " << port << endl;
 
-		daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, port, NULL, NULL, &HandleRequestStatic, this, MHD_OPTION_END);
-		if (!daemon) {
+		utility::string_t address = U("http://localhost:");
+		address.append(to_wstring(port));
+
+		listener = new http_listener(address);
+		if (!listener) 
+		{
 			cout << "ERROR: unable to create HTTP server" << endl;
 			return -1;
 		}
 
-		cout << "ready" << endl;
+		listener->support(methods::GET, std::bind(&WebServer::HandleGetRequest, this, std::placeholders::_1));
 
-		return 0;
+		Concurrency::task_status status = listener->open().wait();
+		if (status == Concurrency::completed)
+		{
+			cout << "ready" << endl;
+			return 0;
+		}
+
+		return -1;
 	}
 
 	void WebServer::Stop()
 	{
-		wms->Stop();
-		delete wms;
+		if (wms)
+		{
+			wms->Stop();
+			delete wms;
+			wms = NULL;
+		}
 
-		MHD_stop_daemon(daemon);
+		if (listener)
+		{
+			listener->close().wait();
+			delete listener;
+			listener = NULL;
+		}
 	}
 
-	static int HandleServiceException(struct MHD_Connection *connection, const string& exeptionCode)
+	WebServer::~WebServer()
+	{
+		Stop();
+	}
+
+	static void HandleServiceException(http_request message, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
-		struct MHD_Response* response = MHD_create_response_from_buffer(exeptionCode.length(), (void*)exeptionCode.c_str(), MHD_RESPMEM_MUST_COPY);
-		int ret = MHD_queue_response(connection, MHD_HTTP_BAD_REQUEST, response);
-		MHD_destroy_response(response);
-		return ret;
+		auto& response = message.get_response().get();
+		response.set_status_code(400);
+		response.set_reason_phrase(string_t(exeptionCode.begin(), exeptionCode.end()));
 	}
 
-	int WebServer::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
+	void WebServer::HandleGetRequest(http_request message)
 	{
-		const char* service = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "service");
+		/*const char* service = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "service");
 		string serviceStr = service ? string(service) : "";
 
 		if (wms && serviceStr == "WMS")
@@ -135,7 +183,7 @@ namespace dw
 			return wmts->HandleRequest(connection, url, method);
 		}
 		
-		return HandleServiceException(connection, "unknown service request");
+		return HandleServiceException(connection, "unknown service request");*/
 	}
 
 }

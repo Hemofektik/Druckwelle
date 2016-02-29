@@ -5,7 +5,6 @@
 #include <chrono>
 
 #include <string.h>
-#include <microhttpd.h>
 
 #include "utils/ImageProcessor.h"
 #include "WebMapTileService.h"

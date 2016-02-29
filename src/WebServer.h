@@ -8,20 +8,13 @@
 
 namespace dw
 {
-	class WebServer
+	struct IWebServer
 	{
-	public:
+		virtual int Start() = 0;
+		virtual void Stop() = 0;
 
-		WebServer();
+		virtual ~IWebServer() {};
 
-		int Start();
-		void Stop();
-
-		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);
-
-	private:
-		struct MHD_Daemon* daemon;
-		class WebMapService* wms;
-		class WebMapTileService* wmts;
+		static IWebServer* Create();
 	};
 }

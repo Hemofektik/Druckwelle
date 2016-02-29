@@ -4,7 +4,6 @@
 #include <chrono>
 
 #include <string.h>
-#include <microhttpd.h>
 
 #include "WebMapService.h"
 
