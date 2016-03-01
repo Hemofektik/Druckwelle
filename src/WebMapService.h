@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dwcore.h"
+#include "utils\HTTP\HTTPRequest.h"
 
 #include <string>
 #include <cstring>
@@ -123,10 +124,10 @@ namespace dw
 		int Start(libconfig::ChainedSetting& config);
 		void Stop();
 
-		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);
+		void HandleRequest(IHTTPRequest& request);
 	private:
 
-		int HandleGetMapRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, struct GetMapRequest& gmr);
+		void HandleGetMapRequest(IHTTPRequest& request, const string& layers, ContentType contentType, struct GetMapRequest& gmr);
 
 		std::map<string, Layer*> availableLayers;
 	};

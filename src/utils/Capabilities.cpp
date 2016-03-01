@@ -1,20 +1,12 @@
 
-#include <Poco/DOM/Document.h>
-#include <Poco/DOM/Element.h>
-#include <Poco/DOM/Text.h>
-#include <Poco/DOM/AutoPtr.h> //typedef to Poco::AutoPtr
-#include <Poco/DOM/DOMWriter.h>
-#include <Poco/XML/XMLWriter.h>
-
 #include <sstream>
 
-using namespace Poco::XML;
 
 #include "Capabilities.h"
 
 namespace dw
 {
-	static AutoPtr<Element> AddSimpleElement(Document* doc, Element* root, string elementName, string elementValue)
+	/*static AutoPtr<Element> AddSimpleElement(Document* doc, Element* root, string elementName, string elementValue)
 	{
 		AutoPtr<Element> element = doc->createElement(elementName);
 		if(elementValue.length() > 0)
@@ -24,12 +16,12 @@ namespace dw
 		}
 		root->appendChild(element);
 		return element;
-	}
+	}*/
 
 	template<ServiceType ST, typename Layer>
 	ServiceCapabilities<ST, Layer>::ServiceCapabilities(const std::map<string, Layer*>& availableLayers)
 	{
-		AutoPtr<Document> doc = new Document;
+		/*AutoPtr<Document> doc = new Document;
 		AutoPtr<Element> root = doc->createElement((ST == WMS) ? "WMS_Capabilities" : "Capabilities");
 		doc->appendChild(root);
 		root->setAttribute("version", "1.3.0");
@@ -52,7 +44,7 @@ namespace dw
 		std::stringstream xmlStream;
 		writer.writeNode(xmlStream, doc);
 
-		xml = xmlStream.str();
+		xml = xmlStream.str();*/
 	}
 
 	template<ServiceType ST, typename Layer>

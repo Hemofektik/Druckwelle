@@ -7,6 +7,8 @@ using namespace std;
 
 int main(int argc, const char* argv[])
 {
+	std::locale::global(std::locale::empty());
+
 	unique_ptr<dw::IWebServer> ws(dw::IWebServer::Create());
 
 	int result = ws->Start();

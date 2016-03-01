@@ -72,31 +72,23 @@ namespace dw
 		}
 	}
 
-	static int HandleGetCapabilities(struct MHD_Connection *connection)
+	static void HandleGetCapabilities(IHTTPRequest& request)
 	{
-		struct MHD_Response* response = MHD_create_response_from_buffer(strlen(wmsCapabilites), (void*)wmsCapabilites, MHD_RESPMEM_PERSISTENT);
-		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-		MHD_destroy_response(response);
-
-		return ret;
+		return request.Reply(IHTTPRequest::StatusCode_OK, wmsCapabilites);
 	}
 
-	static int HandleServiceException(struct MHD_Connection *connection, const string& exeptionCode)
+	static void HandleServiceException(IHTTPRequest& request, const string& exeptionCode)
 	{
-		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
-
-		struct MHD_Response* response = MHD_create_response_from_buffer(exeptionCode.length(), (void*)exeptionCode.c_str(), MHD_RESPMEM_MUST_COPY);
-		int ret = MHD_queue_response(connection, MHD_HTTP_BAD_REQUEST, response);
-		MHD_destroy_response(response);
-		return ret;
+		// TODO implement service exception according to WMTS Specs (XML)
+		request.Reply(IHTTPRequest::StatusCode_BadRequest, exeptionCode);
 	}
 
-	int WebMapTileService::HandleGetTileRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, struct GetTileRequest& gtr)
+	void WebMapTileService::HandleGetTileRequest(IHTTPRequest& request, const string& layers, ContentType contentType, struct GetTileRequest& gtr)
 	{
 		auto availableLayer = availableLayers.find(layers); // TODO: support multiple comma separated layers (incl. alpha blended composite as result)
 		if (availableLayer == availableLayers.end())
 		{
-			return HandleServiceException(connection, "LayerNotDefined");
+			return HandleServiceException(request, "LayerNotDefined");
 		}
 
 		auto& layer = *availableLayer->second;
@@ -108,7 +100,7 @@ namespace dw
 
 		if (gtr.dataType == DT_Unknown)
 		{
-			return HandleServiceException(connection, "InvalidFormat");
+			return HandleServiceException(request, "InvalidFormat");
 		}
 
 		int tileWidth = availableLayer->second->GetTileWidth();
@@ -122,72 +114,66 @@ namespace dw
 			switch (result)
 			{
 			case dw::WebMapTileService::Layer::HGTRR_InvalidStyle:
-				return HandleServiceException(connection, "StyleNotDefined");
+				return HandleServiceException(request, "StyleNotDefined");
 			case dw::WebMapTileService::Layer::HGTRR_InvalidFormat:
-				return HandleServiceException(connection, "InvalidFormat");
+				return HandleServiceException(request, "InvalidFormat");
 			case dw::WebMapTileService::Layer::HGTRR_InternalError:
 			default:
-				return HandleServiceException(connection, "Internal Error");
+				return HandleServiceException(request, "Internal Error");
 				break;
 			}
 		}
 
 		utils::ConvertRawImageToContentType(image, contentType);
-		struct MHD_Response* response = MHD_create_response_from_buffer(image.processedDataSize, image.processedData, MHD_RESPMEM_MUST_COPY);
 
-		int success = MHD_add_response_header(response, "Content-Type", ContentTypeId[contentType].c_str());
-		int ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-		MHD_destroy_response(response);
+		request.Reply(IHTTPRequest::StatusCode_OK, image.processedData, image.processedDataSize, contentType);
 
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;
 		std::cout << "GetMapRequest was processed within " << std::setprecision(5) << time_span.count() << " ms" << endl;
-
-		return ret;
 	}
 
-	int WebMapTileService::HandleRequest(MHD_Connection* connection, const char* url, const char* method)
+	void WebMapTileService::HandleRequest(IHTTPRequest& request)
 	{
-		const char* request = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "request");
-		string requestStr = request ? string(request) : "";
+		string requestType = request.GetArgumentValue("request");
 
-		if (requestStr == "GetCapabilities")
+		if (requestType == "GetCapabilities")
 		{
-			return HandleGetCapabilities(connection);
+			return HandleGetCapabilities(request);
 		}
-		if (requestStr != "GetTile")
+		if (requestType != "GetTile")
 		{
-			return HandleServiceException(connection, "unsupported request type");
+			return HandleServiceException(request, "unsupported request type");
 		}
 
 		// mandatory arguments
-		const char* layers = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "layers");
-		const char* styles = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "styles");
-		const char* format = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "format");
-		const char* tileRow = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilerow");
-		const char* tileCol = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilecol");
-		const char* tileMatrixSet = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilematrixset");
-		const char* tileMatrix = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "tilematrix");
+		const auto layers = request.GetArgumentValue("layers");
+		const auto styles = request.GetArgumentValue("styles");
+		const auto format = request.GetArgumentValue("format");
+		const auto tileRow = request.GetArgumentValue("tilerow");
+		const auto tileCol = request.GetArgumentValue("tilecol");
+		const auto tileMatrixSet = request.GetArgumentValue("tilematrixset");
+		const auto tileMatrix = request.GetArgumentValue("tilematrix");
 
 		// optional arguments
 		//const char* time = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "time");
 
-		if (!layers || !styles || !format || !tileRow || !tileCol || !tileMatrixSet || !tileMatrix)
+		if (!layers.size() || !styles.size() || !format.size() || !tileRow.size() || !tileCol.size() || !tileMatrixSet.size() || !tileMatrix.size())
 		{
-			return HandleServiceException(connection, "MissingParameterValue");
+			return HandleServiceException(request, "MissingParameterValue");
 		}
 
 		GetTileRequest gtr;
 		ContentType contentType = GetContentType(format);
 		if (contentType == CT_Unknown)
 		{
-			return HandleServiceException(connection, "InvalidFormat");
+			return HandleServiceException(request, "InvalidFormat");
 		}
 
-		gtr.tileRow = atoi(tileRow);
-		gtr.tileCol = atoi(tileCol);
+		gtr.tileRow = stoi(tileRow);
+		gtr.tileCol = stoi(tileCol);
 
-		return HandleGetTileRequest(connection, layers, contentType, gtr);
+		return HandleGetTileRequest(request, layers, contentType, gtr);
 	}
 
 }

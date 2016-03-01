@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dwcore.h"
+#include "utils\HTTP\HTTPRequest.h"
 
 #include <string>
 #include <vector>
@@ -85,9 +86,9 @@ namespace dw
 		int Start();
 		void Stop();
 
-		int HandleRequest(struct MHD_Connection* connection, const char* url, const char* method);
+		void HandleRequest(IHTTPRequest& request);
 	private:
-		int HandleGetTileRequest(struct MHD_Connection *connection, const string& layers, ContentType contentType, struct GetTileRequest& gtr);
+		void HandleGetTileRequest(IHTTPRequest& request, const string& layers, ContentType contentType, struct GetTileRequest& gtr);
 
 		std::map<string, Layer*> availableLayers;
 	};

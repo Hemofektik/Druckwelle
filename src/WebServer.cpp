@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+#include <locale>
 
 #include <cpprest/json.h>
 #include <cpprest/http_listener.h>
@@ -14,6 +15,7 @@
 #include "WebServer.h"
 #include "WebMapService.h"
 #include "WebMapTileService.h"
+#include "utils/HTTP/HTTPRequest.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -26,6 +28,58 @@ using namespace http::experimental::listener;
 
 namespace dw
 {
+	class HTTPRequest : public IHTTPRequest
+	{
+	public:
+		HTTPRequest(http_request& request)
+			: request(request)
+		{
+			// store all argument keys as lower case to be ensure we support any spelling
+			auto& f = std::use_facet<std::ctype<utility::char_t>>(std::locale());
+			map<string_t, string_t> srcArguments = uri::split_query(uri::decode(request.request_uri().query()));
+			for (const auto& srcArg : srcArguments)
+			{
+				string_t key = srcArg.first;
+				f.tolower(&key[0], &key[0] + key.size());
+				arguments[string(key.begin(), key.end())] = string(srcArg.second.begin(), srcArg.second.end());
+			}
+
+			statusCodes[StatusCode_OK] = status_codes::OK;
+			statusCodes[StatusCode_BadRequest] = status_codes::BadRequest;
+		}
+		HTTPRequest(HTTPRequest& other) = delete;
+
+		virtual string GetArgumentValue(const string& argument) const override
+		{
+			auto arg = arguments.find(argument);
+			auto result = (arg != arguments.end() && !arg->second.empty()) ? arg->second : "";
+			return result;
+		}
+
+		virtual void Reply(StatusCode statusCode, const string& message) override
+		{
+			request.reply(statusCodes[statusCode], message);
+		}
+
+		virtual void Reply(StatusCode statusCode, const u8* data, const size dataSize, const ContentType contentType) override
+		{
+			http_response r;
+
+			string dataString;
+			dataString.resize(dataSize);
+			memcpy(&dataString.front(), data, dataSize);
+			const auto contentTypeId = ContentTypeId[contentType];
+			r.set_body(move(dataString), contentTypeId);
+			r.set_status_code(statusCodes[statusCode]);
+			request.reply(r);
+		}
+	private:
+
+		http_request& request;
+		map<string, string> arguments;
+		status_code statusCodes[NumStatusCodes];
+	};
+
 	class WebServer : public IWebServer
 	{
 	public:
@@ -160,30 +214,28 @@ namespace dw
 		Stop();
 	}
 
-	static void HandleServiceException(http_request message, const string& exeptionCode)
+	static void HandleServiceException(IHTTPRequest& request, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
-		auto& response = message.get_response().get();
-		response.set_status_code(400);
-		response.set_reason_phrase(string_t(exeptionCode.begin(), exeptionCode.end()));
+		request.Reply(IHTTPRequest::StatusCode_BadRequest, exeptionCode);
 	}
 
 	void WebServer::HandleGetRequest(http_request message)
 	{
-		/*const char* service = MHD_lookup_connection_value(connection, MHD_GET_ARGUMENT_KIND, "service");
-		string serviceStr = service ? string(service) : "";
+		HTTPRequest request(message);
+		auto service = request.GetArgumentValue("service");
 
-		if (wms && serviceStr == "WMS")
+		if (wms && service == "WMS")
 		{
-			return wms->HandleRequest(connection, url, method);
+			return wms->HandleRequest(request);
 		}
-		else if (wmts && serviceStr == "WMTS")
+		else if (wmts && service == "WMTS")
 		{
-			return wmts->HandleRequest(connection, url, method);
+			return wmts->HandleRequest(request);
 		}
-		
-		return HandleServiceException(connection, "unknown service request");*/
+
+		return HandleServiceException(request, "unknown service request");
 	}
 
 }

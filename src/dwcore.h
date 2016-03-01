@@ -41,7 +41,7 @@ namespace dw
 
 	const string ContentTypeId[] =
 	{
-		"unknown",
+		"application/octet-stream",
 		"image/png",
 		"application/raw-s16",
 		"application/raw-u8",

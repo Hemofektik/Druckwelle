@@ -21,6 +21,7 @@
 #include <omp.h>
 
 #include <ZFXMath.h>
+#include <LooseQuadtree.h>
 
 #include "../WebMapService.h"
 #include "../utils/ImageProcessor.h"
@@ -28,7 +29,6 @@
 #include "../utils/VectorTiles/VectorTiles.h"
 
 #include <ogr_spatialref.h>
-#include <LooseQuadtree.h>
 
 using namespace std;
 using namespace std::chrono;
@@ -39,6 +39,7 @@ using namespace loose_quadtree;
 using namespace dw;
 using namespace dw::utils;
 
+const int MaxOSMZoomLevel = 14;
 
 class Polygon
 {
@@ -293,7 +294,7 @@ namespace dw
 				const double maxDensity = Max(densityX, densityY);
 
 				const double numTilesDesired = maxDensity / DesiredDataDensity;
-				const int zoomLevel = (int)ceil(log2(numTilesDesired));
+				const int zoomLevel = Min(MaxOSMZoomLevel, (int)ceil(log2(numTilesDesired)));
 				const int numTiles = 1 << zoomLevel;
 
 				// TODO: Take distance DistanceDomain into account ensure all geometries 

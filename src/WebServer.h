@@ -2,10 +2,6 @@
 
 #include "dwcore.h"
 
-#include <string>
-#include <vector>
-#include <map>
-
 namespace dw
 {
 	struct IWebServer
