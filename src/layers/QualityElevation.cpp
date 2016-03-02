@@ -97,7 +97,7 @@ namespace Layers
 
 			// load antarctic data
 			{
-				const path antarcticDataPath("E:/NSIDC-0082/ramp200dem_wgs_v2.bin");
+				/*const path antarcticDataPath("E:/NSIDC-0082/ramp200dem_wgs_v2.bin");
 
 				shared_ptr<Image> antarcticData;
 				if (!Image::LoadContentFromFile(antarcticDataPath.string(), CT_Image_Raw_S16, antarcticData))
@@ -109,7 +109,7 @@ namespace Layers
 				ConvertContentTypeToRawImage(ad);
 				ad.width = 28680;
 				ad.height = 24580;
-				ConvertBigEndianToLocalEndianness(ad);
+				ConvertBigEndianToLocalEndianness(ad);*/
 
 				/*
 				// write file to disk to verify valid loading
@@ -264,7 +264,7 @@ namespace Layers
 					s16* elevation = (s16*)s16Img.rawData;
 					while(dstGreyScale < dstGreyScaleEnd) // convert elevation data to visual greyscale inplace
 					{
-						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation / 32, 0, 255);
+						u8 elevationAsGrayScale = (u8)Clamp<s32>(*elevation / 6, 0, 255);
 
 						*dstGreyScale = elevationAsGrayScale;
 

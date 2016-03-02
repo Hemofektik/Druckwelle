@@ -3,10 +3,7 @@
 #include "../utils/ImageProcessor.h"
 #include "../utils/Elevation.h"
 
-#include <Poco/Net/HTTPRequest.h>
-#include "Poco/Net/HTTPClientSession.h"
-#include "Poco/Net/HTTPRequest.h"
-#include "Poco/Net/HTTPResponse.h"
+#include "../utils/HTTP/HTTP.h"
 #include <istream>
 #include <ostream>
 #include <sstream>
@@ -20,10 +17,6 @@
 
 using namespace std;
 using namespace ZFXMath;
-
-using Poco::Net::HTTPClientSession;
-using Poco::Net::HTTPRequest;
-using Poco::Net::HTTPResponse;
 
 namespace dw
 {
@@ -250,7 +243,7 @@ namespace dw
 			{
 				string str = "";
 				string strEnd = to_string(number);
-				for (int d = 0; d < numberOfDigits - (int)strEnd.length(); d++)
+				for (u32 d = 0; d < numberOfDigits - (u32)strEnd.length(); d++)
 				{
 					str.push_back('0');
 				}
@@ -345,11 +338,13 @@ namespace dw
 				const double TilePaddingBottomInDegree = TileHeightInDegree * (desc.tilePaddingBottom / (double)desc.tileHeight);
 
 				const auto& fileStatus = levels.get()[desc.numLevels - 1].fileStatus;
+				
+				unique_ptr<IHTTPClient> client(IHTTPClient::Create("http://" + desc.srcHost + ":" + to_string(desc.srcPort)));
 
-				for (int y = 0; y < desc.numTilesY; y++)
+				for (u32 y = 0; y < desc.numTilesY; y++)
 				{
 					#pragma omp parallel for
-					for (int x = 0; x < desc.numTilesX; x++)
+					for (int x = 0; x < (int)desc.numTilesX; x++)
 					{
 						if (fileStatus.get()[y * desc.numTilesX + x] != FileStatus_Missing)
 						{
@@ -378,33 +373,22 @@ namespace dw
 							{
 								retry = false;
 
-								HTTPClientSession s(desc.srcHost, desc.srcPort);
-								HTTPRequest request(HTTPRequest::HTTP_GET, tileRequestUri);
+								auto response = client->Request(tileRequestUri);
 
-								s.sendRequest(request);
-								HTTPResponse response;
-
-								if (response.getStatus() != HTTPResponse::HTTP_OK)
+								if (response->GetStatusCode() != HTTP_OK)
 								{
-									cout << "Tile Cache Error: failed to receive tile (" << x << "," << y << ")! http return code: "  << response.getStatus() << endl;
+									cout << "Tile Cache Error: failed to receive tile (" << x << "," << y << ")! http return code: "  << response->GetStatusCode() << endl;
 									retry = true;
 									continue;
 								}
 
-								istream& rs = s.receiveResponse(response);
-
-								std::streamsize len = 0;
-								rs.read((char*)tileImg.rawData, expectedTileSize);
-								std::streamsize readSize = rs.gcount();
+								size readSize = response->ReadBody(tileImg.rawData, expectedTileSize);
 								if (readSize < expectedTileSize)
 								{
 									cout << "Tile Cache Error: Cache Creation failed! Failed to receive valid tile (" << x << "," << y << ")!" << endl;
 									retry = true;
 									continue;
 								}
-
-								s.reset();
-
 
 								if (desc.invalidValue.IsSet() && utils::IsImageCompletelyInvalid(tileImg, desc.invalidValue))
 								{
@@ -427,11 +411,6 @@ namespace dw
 									retry = true;
 									continue;
 								}
-							}
-							catch (Poco::Exception& e) 
-							{
-								cout << "Tile Cache Error: " << e.displayText() << " ... retrying" << std::endl;
-								retry = true;
 							}
 							catch (...)
 							{

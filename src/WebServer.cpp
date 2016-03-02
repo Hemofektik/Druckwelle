@@ -46,9 +46,6 @@ namespace dw
 				f.tolower(&key[0], &key[0] + key.size());
 				arguments[string(key.begin(), key.end())] = string(srcArg.second.begin(), srcArg.second.end());
 			}
-
-			statusCodes[HTTP_OK] = status_codes::OK;
-			statusCodes[HTTP_BadRequest] = status_codes::BadRequest;
 		}
 		HTTPRequest(HTTPRequest& other) = delete;
 
@@ -61,7 +58,7 @@ namespace dw
 
 		virtual void Reply(HTTPStatusCode statusCode, const string& message) override
 		{
-			request.reply(statusCodes[statusCode], message);
+			request.reply((status_code)statusCode, message);
 		}
 
 		virtual void Reply(HTTPStatusCode statusCode, const u8* data, const size dataSize, const ContentType contentType) override
@@ -73,14 +70,13 @@ namespace dw
 			memcpy(&dataString.front(), data, dataSize);
 			const auto contentTypeId = ContentTypeId[contentType];
 			r.set_body(move(dataString), contentTypeId);
-			r.set_status_code(statusCodes[statusCode]);
+			r.set_status_code((status_code)statusCode);
 			request.reply(r);
 		}
 	private:
 
 		http_request& request;
 		map<string, string> arguments;
-		status_code statusCodes[NumHTTPStatusCodes];
 	};
 
 	class WebServer : public IWebServer

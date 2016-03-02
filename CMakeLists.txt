@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 2.8)
 project (Druckwelle)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY  "${CMAKE_SOURCE_DIR}/bin")
 
-add_definitions( -DPOCO_NO_AUTOMATIC_LIBS )
 add_definitions( -DLITTLE_ENDIAN=1 )
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/3rdparty/")
@@ -17,7 +16,7 @@ if(MSVC)
 	INCLUDE_EXTERNAL_MSPROJECT(libconfig++ "${CMAKE_SOURCE_DIR}/3rdparty/libconfig/lib/libconfig++.vcxproj")
 	INCLUDE_EXTERNAL_MSPROJECT(cpprestsdk140 "${CMAKE_SOURCE_DIR}/3rdparty/cpprestsdk/Release/src/build/vs14/casablanca140.vcxproj")
 
-	add_definitions( -DALLOW_AMP=1 )
+	add_definitions( -DALLOW_AMP=0 )
 	add_definitions( -DNOMINMAX )
 else()
 
@@ -71,25 +70,15 @@ link_libraries (
 if(MSVC)
 include_directories(
 	${CMAKE_SOURCE_DIR}/3rdparty/libconfig/lib
-	${CMAKE_SOURCE_DIR}/3rdparty/poco/include
 	${CMAKE_SOURCE_DIR}/3rdparty/GDAL/include
 )
 link_libraries (
-	${CMAKE_SOURCE_DIR}/lib/gdal_i.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoFoundation.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoNet.lib
-	optimized ${CMAKE_SOURCE_DIR}/lib/PocoXML.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoFoundationd.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoNetd.lib
-	debug ${CMAKE_SOURCE_DIR}/lib/PocoXMLd.lib
+	${CMAKE_SOURCE_DIR}/3rdparty/GDAL/lib/gdal_i.lib
 )
 else()
 link_libraries (
 	${GDAL_LIBRARY}
 	${LIBCONFIGPP_LIBRARIES}
-	PocoFoundation
-	PocoNet
-	PocoXML
 	stdc++fs
 	cpprestsdk140
 )

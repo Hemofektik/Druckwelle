@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
-
+#include <memory>
 
 namespace dw
 {
