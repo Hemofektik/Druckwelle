@@ -17,7 +17,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 ### Built-in WMS Layers ###
 
  * Example Layer (showing how to implement the basics for your own layer)
- * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v4.1 (3 arc seconds))
+ * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v3 (1 arc seconds))
  * OpenStreetMap to Signed Distance Field Rasterization
 
 ---
@@ -29,15 +29,12 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
 ## Windows ##
 
- 1. run GenerateLibAndInc.bat
- * run CreateProjectFiles.bat
+ 1. run CreateProjectFiles.bat
  * open Visual Studio Solution from sln directory and build
 
 ## Linux / OSX ##
 
- 1. download Poco Libraries Basic Edition (http://pocoproject.org/), compile, and install
- * install package libmicrohttpd-dev
- * install package libgdal-dev
+ 1. install packages: libboost1.54-all-dev libssl-dev libgdal-dev
  * cmake -G "Unix Makefile"
  * make
 
