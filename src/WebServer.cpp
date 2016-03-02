@@ -10,12 +10,15 @@
 #include <cpprest/uri.h>
 #include <cpprest/asyncrt_utils.h>
 
+#pragma warning(push)
+#pragma warning(disable : 4275)
 #include <libconfig_chained.h>
+#pragma warning(pop)
 
 #include "WebServer.h"
 #include "WebMapService.h"
 #include "WebMapTileService.h"
-#include "utils/HTTP/HTTPRequest.h"
+#include "utils/HTTP/HTTP.h"
 
 using namespace std;
 using namespace std::chrono;

@@ -21,4 +21,18 @@ namespace dw
 		virtual void Reply(HTTPStatusCode statusCode, const string& message) = 0;
 		virtual void Reply(HTTPStatusCode statusCode, const u8* data, const size dataSize, const ContentType contentType) = 0;
 	};
+
+	struct IHTTPResponse
+	{
+		virtual ~IHTTPResponse() {};
+
+		virtual HTTPStatusCode GetStatusCode() const = 0;
+	};
+
+	struct IHTTPClient
+	{
+		virtual ~IHTTPClient() {};
+
+		static IHTTPClient* Create(const string& baseUri);
+	};
 }

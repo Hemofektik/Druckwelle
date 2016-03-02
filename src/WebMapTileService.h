@@ -1,7 +1,7 @@
 #pragma once
 
 #include "dwcore.h"
-#include "utils\HTTP\HTTPRequest.h"
+#include "utils\HTTP\HTTP.h"
 
 #include <string>
 #include <vector>

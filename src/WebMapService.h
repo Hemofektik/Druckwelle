@@ -1,13 +1,17 @@
 #pragma once
 
 #include "dwcore.h"
-#include "utils\HTTP\HTTPRequest.h"
+#include "utils\HTTP\HTTP.h"
 
 #include <string>
 #include <cstring>
 #include <vector>
 #include <map>
+
+#pragma warning(push)
+#pragma warning(disable : 4275)
 #include <libconfig_chained.h>
+#pragma warning(pop)
 
 class OGRSpatialReference;
 class OGRCoordinateTransformation;
