@@ -24,7 +24,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
 ## Build Requirements ##
 
- * CMake 2.8
+ * CMake 3.4
  * Visual Studio 2015 (Windows only)
 
 ## Windows ##
@@ -45,8 +45,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
 ## To-do: ##
 
- * replace all 3rdparty lib copies by submodules
- * replace POCO and libmicrohttpd library by cpprestsdk (https://github.com/Microsoft/cpprestsdk)
+ * implement GetCapabilities functionality to reflect actual layer setup
 
 ---
 

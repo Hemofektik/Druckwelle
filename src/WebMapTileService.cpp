@@ -74,13 +74,13 @@ namespace dw
 
 	static void HandleGetCapabilities(IHTTPRequest& request)
 	{
-		return request.Reply(IHTTPRequest::StatusCode_OK, wmsCapabilites);
+		return request.Reply(HTTP_OK, wmsCapabilites);
 	}
 
 	static void HandleServiceException(IHTTPRequest& request, const string& exeptionCode)
 	{
 		// TODO implement service exception according to WMTS Specs (XML)
-		request.Reply(IHTTPRequest::StatusCode_BadRequest, exeptionCode);
+		request.Reply(HTTP_BadRequest, exeptionCode);
 	}
 
 	void WebMapTileService::HandleGetTileRequest(IHTTPRequest& request, const string& layers, ContentType contentType, struct GetTileRequest& gtr)
@@ -126,7 +126,7 @@ namespace dw
 
 		utils::ConvertRawImageToContentType(image, contentType);
 
-		request.Reply(IHTTPRequest::StatusCode_OK, image.processedData, image.processedDataSize, contentType);
+		request.Reply(HTTP_OK, image.processedData, image.processedDataSize, contentType);
 
 		high_resolution_clock::time_point t2 = high_resolution_clock::now();
 		duration<double> time_span = duration_cast<duration<double>>(t2 - t1) * 1000.0;

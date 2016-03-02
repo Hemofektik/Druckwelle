@@ -44,8 +44,8 @@ namespace dw
 				arguments[string(key.begin(), key.end())] = string(srcArg.second.begin(), srcArg.second.end());
 			}
 
-			statusCodes[StatusCode_OK] = status_codes::OK;
-			statusCodes[StatusCode_BadRequest] = status_codes::BadRequest;
+			statusCodes[HTTP_OK] = status_codes::OK;
+			statusCodes[HTTP_BadRequest] = status_codes::BadRequest;
 		}
 		HTTPRequest(HTTPRequest& other) = delete;
 
@@ -56,12 +56,12 @@ namespace dw
 			return result;
 		}
 
-		virtual void Reply(StatusCode statusCode, const string& message) override
+		virtual void Reply(HTTPStatusCode statusCode, const string& message) override
 		{
 			request.reply(statusCodes[statusCode], message);
 		}
 
-		virtual void Reply(StatusCode statusCode, const u8* data, const size dataSize, const ContentType contentType) override
+		virtual void Reply(HTTPStatusCode statusCode, const u8* data, const size dataSize, const ContentType contentType) override
 		{
 			http_response r;
 
@@ -77,7 +77,7 @@ namespace dw
 
 		http_request& request;
 		map<string, string> arguments;
-		status_code statusCodes[NumStatusCodes];
+		status_code statusCodes[NumHTTPStatusCodes];
 	};
 
 	class WebServer : public IWebServer
@@ -218,7 +218,7 @@ namespace dw
 	{
 		// TODO implement service exception according to WMS 1.3.0 Specs (XML)
 
-		request.Reply(IHTTPRequest::StatusCode_BadRequest, exeptionCode);
+		request.Reply(HTTP_BadRequest, exeptionCode);
 	}
 
 	void WebServer::HandleGetRequest(http_request message)
