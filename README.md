@@ -4,7 +4,6 @@
 
  * Web Map Service (WMS)
  * Web Map Tile Service (WMTS)
- * Web Feature Service (WFS)
 
 Aiming to serve blistering fast geo raster data beyond the WMS/WMTS specification like raw data or custom formats.
 Druckwelle does not feature a full implementation of WMS/WMTS Specifications and is not planned to do some day.
@@ -17,7 +16,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 ### Built-in WMS Layers ###
 
  * Example Layer (showing how to implement the basics for your own layer)
- * High Quality Elevation Map Service (combining ASTER (1 arc second) + SRTM_v3 (1 arc seconds))
+ * High Quality Elevation Map Service (combining ASTER (1 arc second, 30m) + SRTM_v3 (1 arc second, 30m))
  * OpenStreetMap to Signed Distance Field Rasterization
 
 ---
@@ -42,6 +41,7 @@ Druckwelle does not feature a full implementation of WMS/WMTS Specifications and
 
 ## To-do: ##
 
+ * finish High Quality Elevation Map Service (ASTER+SRTM+NSIDC-0082)
  * implement GetCapabilities functionality to reflect actual layer setup
 
 ---

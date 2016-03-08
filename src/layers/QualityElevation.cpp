@@ -369,6 +369,7 @@ namespace Layers
 				}
 			}*/
 
+			// TODO: replace gotos by RAII
 			GDALClose(demDS);
 			//GDALClose(numDS);
 
